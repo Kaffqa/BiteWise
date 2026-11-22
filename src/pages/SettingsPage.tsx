@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { LogOut, User, Ruler, Weight as WeightIcon, Calendar, Activity, Target as TargetIcon, Zap, Flame, ShieldAlert, Heart, Utensils, Edit3, Trash2 } from 'lucide-react';
+import { LogOut, User, Ruler, Weight as WeightIcon, Calendar, Activity, Target as TargetIcon, Zap, Flame, ShieldAlert, Heart, Utensils, Edit3, Trash2, Pill } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { differenceInYears, parseISO } from 'date-fns';
 import EditSettingsModal from '@/components/settings/EditSettingsModal';
@@ -131,6 +131,13 @@ export default function SettingsPage() {
               </h4>
               <TagList tags={profile.dietary_preferences} />
             </div>
+
+            <div>
+              <h4 className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                <Pill size={12} /> Active Medications
+              </h4>
+              <TagList tags={profile.medications} />
+            </div>
           </div>
         </div>
 
@@ -147,11 +154,11 @@ export default function SettingsPage() {
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="bg-[#f0f5f2] p-4 rounded-[4px] flex flex-col justify-center">
                   <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mb-1 flex items-center gap-1"><Zap size={10} /> BMR</span>
-                  <span className="font-serif text-xl text-[#1e4832] leading-none">{profile.calculated_bmr || '-'} <span className="text-[10px] font-mono text-[#8ba797]">kcal</span></span>
+                  <span className="font-serif text-xl text-[#1e4832] leading-none">{profile.calculated_bmr ? Math.round(Number(profile.calculated_bmr)) : '-'} <span className="text-[10px] font-mono text-[#8ba797]">kcal</span></span>
                 </div>
                 <div className="bg-[#f0f5f2] p-4 rounded-[4px] flex flex-col justify-center">
                   <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mb-1 flex items-center gap-1"><Flame size={10} /> TDEE</span>
-                  <span className="font-serif text-xl text-[#1e4832] leading-none">{profile.calculated_tdee || '-'} <span className="text-[10px] font-mono text-[#8ba797]">kcal</span></span>
+                  <span className="font-serif text-xl text-[#1e4832] leading-none">{profile.calculated_tdee ? Math.round(Number(profile.calculated_tdee)) : '-'} <span className="text-[10px] font-mono text-[#8ba797]">kcal</span></span>
                 </div>
               </div>
             </div>
@@ -159,7 +166,7 @@ export default function SettingsPage() {
             <div className="pt-2">
               <div className="flex justify-between items-end mb-2">
                 <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider">Daily Calorie Target</span>
-                <span className="font-serif text-2xl text-[#1e4832] leading-none">{profile.target_calories || '-'}</span>
+                <span className="font-serif text-2xl text-[#1e4832] leading-none">{profile.target_calories ? Math.round(Number(profile.target_calories)) : '-'}</span>
               </div>
               <div className="h-2 w-full bg-[#1a3825] rounded-[4px] overflow-hidden shadow-inner" />
             </div>
@@ -177,15 +184,15 @@ export default function SettingsPage() {
             <div className="grid grid-cols-3 gap-2 pt-3 mt-3 border-t border-[#e8efe9]">
               <div className="text-center">
                 <span className="block font-mono text-[9px] text-[#8ba797] uppercase">Fiber</span>
-                <span className="font-mono text-[11px] font-bold text-[#1e4832]">{profile.target_fiber_g || '-'}g</span>
+                <span className="font-mono text-[11px] font-bold text-[#1e4832]">{profile.target_fiber_g ? Math.round(Number(profile.target_fiber_g)) : '-'}g</span>
               </div>
               <div className="text-center border-l border-r border-[#e8efe9]">
                 <span className="block font-mono text-[9px] text-[#8ba797] uppercase">Sugar Max</span>
-                <span className="font-mono text-[11px] font-bold text-[#1e4832]">{profile.target_sugar_g || '-'}g</span>
+                <span className="font-mono text-[11px] font-bold text-[#1e4832]">{profile.target_sugar_g ? Math.round(Number(profile.target_sugar_g)) : '-'}g</span>
               </div>
               <div className="text-center">
                 <span className="block font-mono text-[9px] text-[#8ba797] uppercase">Sodium Max</span>
-                <span className="font-mono text-[11px] font-bold text-[#1e4832]">{profile.target_sodium_mg || '-'}mg</span>
+                <span className="font-mono text-[11px] font-bold text-[#1e4832]">{profile.target_sodium_mg ? Math.round(Number(profile.target_sodium_mg)) : '-'}mg</span>
               </div>
             </div>
           </div>
@@ -250,7 +257,7 @@ function MacroBar({ label, value, percentage, color }: { label: string, value: n
       <div className="flex justify-between items-center mb-1">
         <span className="font-mono text-[11px] text-[#1e4832]">{label}</span>
         <div className="text-right">
-          <span className="font-serif text-[13px] text-[#1e4832] leading-none">{value || 0}g </span>
+          <span className="font-serif text-[13px] text-[#1e4832] leading-none">{value ? Math.round(Number(value)) : 0}g </span>
           <span className="font-mono text-[9px] text-[#8ba797] ml-0.5">({percentage}%)</span>
         </div>
       </div>

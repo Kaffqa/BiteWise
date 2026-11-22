@@ -277,11 +277,18 @@ const StepDietStyles = ({ data, updateData }: any) => {
 
 const StepAllergies = ({ data, updateData }: any) => {
   const [customInput, setCustomInput] = React.useState('');
+  const [customMed, setCustomMed] = React.useState('');
   
   const toggleItem = (item: string) => {
     const current = data.allergies || [];
     const newItems = current.includes(item) ? current.filter((i: string) => i !== item) : [...current, item];
     updateData({ allergies: newItems });
+  };
+
+  const toggleMed = (item: string) => {
+    const current = data.medications || [];
+    const newItems = current.includes(item) ? current.filter((i: string) => i !== item) : [...current, item];
+    updateData({ medications: newItems });
   };
 
   const addCustomItem = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -295,32 +302,71 @@ const StepAllergies = ({ data, updateData }: any) => {
     }
   };
 
+  const addCustomMed = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && customMed.trim() !== '') {
+      e.preventDefault();
+      const current = data.medications || [];
+      if (!current.includes(customMed.trim())) {
+        updateData({ medications: [...current, customMed.trim()] });
+      }
+      setCustomMed('');
+    }
+  };
+
   const predefined = ['Peanuts', 'Tree Nuts', 'Milk', 'Eggs', 'Wheat', 'Soy', 'Fish', 'Shellfish', 'Lactose', 'Gluten'];
   const currentSelections = data.allergies || [];
   const customSelections = currentSelections.filter((item: string) => !predefined.includes(item));
   const allItems = [...predefined, ...customSelections];
 
+  const predefinedMeds = ['Warfarin', 'Metformin', 'Atorvastatin', 'Amlodipine', 'Lisinopril', 'Levothyroxine'];
+  const currentMeds = data.medications || [];
+  const customMeds = currentMeds.filter((item: string) => !predefinedMeds.includes(item));
+  const allMeds = [...predefinedMeds, ...customMeds];
+
   return (
     <div className="flex flex-col items-center w-full max-w-lg mx-auto space-y-6">
-      <div className="text-center mb-6">
+      <div className="text-center mb-2">
         <p className="text-xs text-[#a0b0a6] uppercase tracking-widest font-mono mb-2">Step 3 Of 4</p>
-        <h3 className="text-2xl font-mono font-semibold text-[#1e4832]">Allergies</h3>
-        <p className="text-sm text-[#a0b0a6] font-mono mt-1">Select any ingredients you need to avoid</p>
+        <h3 className="text-2xl font-mono font-semibold text-[#1e4832]">Allergies & Medications</h3>
+        <p className="text-sm text-[#a0b0a6] font-mono mt-1">Protect against allergies & food-drug interactions</p>
       </div>
-      <div className="flex flex-wrap justify-center gap-3 w-full">
-        {allItems.map((item: string) => (
-          <MultiSelectPill key={item} label={item} selected={currentSelections.includes(item)} onClick={() => toggleItem(item)} />
-        ))}
+
+      <div className="w-full">
+        <h4 className="text-xs text-[#a4b5aa] font-mono mb-2 text-center uppercase tracking-wider">Allergens to Avoid</h4>
+        <div className="flex flex-wrap justify-center gap-2 w-full">
+          {allItems.map((item: string) => (
+            <MultiSelectPill key={item} label={item} selected={currentSelections.includes(item)} onClick={() => toggleItem(item)} />
+          ))}
+        </div>
+        <div className="w-full mt-2 flex items-center justify-center">
+          <input 
+            type="text" 
+            placeholder="+ Add other allergy (Enter)"
+            value={customInput}
+            onChange={(e) => setCustomInput(e.target.value)}
+            onKeyDown={addCustomItem}
+            className="w-full sm:w-auto min-w-[220px] text-center bg-transparent border-b border-[#c0d4c8] focus:border-[#1e4832] px-3 py-1 font-mono text-[12px] text-[#1e4832] placeholder:text-[#a4b5aa] focus:outline-none transition-colors"
+          />
+        </div>
       </div>
-      <div className="w-full mt-4 flex items-center justify-center">
-        <input 
-          type="text" 
-          placeholder="+ Add other allergy (press Enter)"
-          value={customInput}
-          onChange={(e) => setCustomInput(e.target.value)}
-          onKeyDown={addCustomItem}
-          className="w-full sm:w-auto min-w-[260px] text-center bg-transparent border-b border-[#c0d4c8] focus:border-[#1e4832] px-4 py-2 font-mono text-[13px] text-[#1e4832] placeholder:text-[#a4b5aa] focus:outline-none transition-colors"
-        />
+
+      <div className="w-full pt-4 border-t border-[#e8efe9]">
+        <h4 className="text-xs text-[#a4b5aa] font-mono mb-2 text-center uppercase tracking-wider">Active Medications (Optional Guardian)</h4>
+        <div className="flex flex-wrap justify-center gap-2 w-full">
+          {allMeds.map((item: string) => (
+            <MultiSelectPill key={item} label={item} selected={currentMeds.includes(item)} onClick={() => toggleMed(item)} />
+          ))}
+        </div>
+        <div className="w-full mt-2 flex items-center justify-center">
+          <input 
+            type="text" 
+            placeholder="+ Add medication e.g. Warfarin (Enter)"
+            value={customMed}
+            onChange={(e) => setCustomMed(e.target.value)}
+            onKeyDown={addCustomMed}
+            className="w-full sm:w-auto min-w-[220px] text-center bg-transparent border-b border-[#c0d4c8] focus:border-[#1e4832] px-3 py-1 font-mono text-[12px] text-[#1e4832] placeholder:text-[#a4b5aa] focus:outline-none transition-colors"
+          />
+        </div>
       </div>
     </div>
   );
@@ -470,6 +516,7 @@ export default function OnboardingPage() {
           intolerances: data.intolerances || [],
           medicalConditions: data.medical_conditions || [],
           dietaryPreferences: data.dietary_preferences || [],
+          medications: data.medications || [],
           targetCalories: null,
           targetSodiumMg: null,
           targetSugarG: null,

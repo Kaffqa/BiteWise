@@ -56,6 +56,7 @@ export function useProfile() {
         intolerances: anyData.intolerances || [],
         medical_conditions: anyData.medicalConditions || anyData.medical_conditions || [],
         dietary_preferences: anyData.dietaryPreferences || anyData.dietary_preferences || [],
+        medications: anyData.medications || [],
       };
 
       // Remove undefined keys so Supabase doesn't complain

@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Save, ShieldAlert, Heart, Utensils, Ruler, Weight as WeightIcon, ChevronDown } from 'lucide-react';
+import { X, Save, ShieldAlert, Heart, Utensils, Ruler, Weight as WeightIcon, ChevronDown, Pill } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Options from Onboarding
 const ALLERGIES = ['Peanuts', 'Tree Nuts', 'Milk', 'Eggs', 'Wheat', 'Soy', 'Fish', 'Shellfish', 'Lactose', 'Gluten'];
 const MEDICAL = ['Diabetes Type 1', 'Diabetes Type 2', 'Hypertension', 'Celiac Disease', 'IBS', 'GERD', 'PCOS'];
 const DIET = ['Vegetarian', 'Vegan', 'Pescatarian', 'Keto', 'Paleo', 'Halal', 'Kosher', 'Low Carb'];
+const MEDICATIONS = ['Warfarin', 'Metformin', 'Atorvastatin', 'Amlodipine', 'Lisinopril', 'Levothyroxine', 'Omeprazole', 'Ibuprofen / NSAID', 'Antidepressants / SSRI', 'Insulin'];
 const ACTIVITY_LEVELS = ['sedentary', 'lightly_active', 'moderately_active', 'very_active', 'extra_active'];
 const GOALS = ['lose_weight_fast', 'lose_weight_gradual', 'maintain_weight', 'gain_muscle'];
 
@@ -92,7 +93,8 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
     goal: profile.goal || 'maintain_weight',
     allergies: profile.allergies || [],
     medical_conditions: profile.medical_conditions || [],
-    dietary_preferences: profile.dietary_preferences || []
+    dietary_preferences: profile.dietary_preferences || [],
+    medications: profile.medications || []
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -100,6 +102,7 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
   const [customAllergy, setCustomAllergy] = useState('');
   const [customMedical, setCustomMedical] = useState('');
   const [customDiet, setCustomDiet] = useState('');
+  const [customMedication, setCustomMedication] = useState('');
 
   const toggleArrayItem = (key: string, item: string) => {
     setFormData((prev: any) => {
@@ -289,6 +292,31 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
                       toggleArrayItem('dietary_preferences', customDiet.trim());
                     }
                     setCustomDiet('');
+                  }
+                }}
+                className="w-full bg-transparent border-b border-[#c0d4c8] focus:border-[#1e4832] py-2 font-mono text-[11px] text-[#1e4832] placeholder:text-[#a4b5aa] focus:outline-none transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-xs font-mono text-[#1e4832] mb-2"><Pill size={14}/> Active Medications (Drug-Food Guardian)</label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {Array.from(new Set([...MEDICATIONS, ...(formData.medications || [])])).map(item => (
+                  <MultiSelectPill key={item as string} label={item as string} selected={(formData.medications || []).includes(item)} onClick={() => toggleArrayItem('medications', item as string)} />
+                ))}
+              </div>
+              <input 
+                type="text" 
+                placeholder="+ Add medication e.g. Warfarin, Metformin (Enter)"
+                value={customMedication}
+                onChange={(e) => setCustomMedication(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && customMedication.trim()) {
+                    e.preventDefault();
+                    if (!(formData.medications || []).includes(customMedication.trim())) {
+                      toggleArrayItem('medications', customMedication.trim());
+                    }
+                    setCustomMedication('');
                   }
                 }}
                 className="w-full bg-transparent border-b border-[#c0d4c8] focus:border-[#1e4832] py-2 font-mono text-[11px] text-[#1e4832] placeholder:text-[#a4b5aa] focus:outline-none transition-colors"
