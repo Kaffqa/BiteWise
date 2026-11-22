@@ -99,21 +99,21 @@ const DailySummaryCard = ({ profile, todaySummary, loading }: any) => {
   const dateStr = format(new Date(), 'dd - MM - yyyy');
   const firstName = profile?.full_name?.split(' ')[0] || 'User';
 
-  const targetCalories = profile?.target_calories || 2000;
-  const consumed = todaySummary?.total_calories || 0;
+  const targetCalories = Math.round(Number(profile?.target_calories) || 2000);
+  const consumed = Math.round(Number(todaySummary?.total_calories) || 0);
   const remaining = Math.max(0, targetCalories - consumed);
-  const consumedPct = Math.min(consumed / targetCalories, 1);
+  const consumedPct = targetCalories > 0 ? Math.min(consumed / targetCalories, 1) : 0;
 
-  const targetProtein = profile?.target_protein_g || 130;
-  const targetCarbs = profile?.target_carbs_g || 240;
-  const targetFat = profile?.target_fat_g || 70;
-  const protein = todaySummary?.total_protein_g || 0;
-  const carbs = todaySummary?.total_carbs_g || 0;
-  const fat = todaySummary?.total_fat_g || 0;
+  const targetProtein = Math.round(Number(profile?.target_protein_g) || 130);
+  const targetCarbs = Math.round(Number(profile?.target_carbs_g) || 240);
+  const targetFat = Math.round(Number(profile?.target_fat_g) || 70);
+  const protein = Math.round(Number(todaySummary?.total_protein_g) || 0);
+  const carbs = Math.round(Number(todaySummary?.total_carbs_g) || 0);
+  const fat = Math.round(Number(todaySummary?.total_fat_g) || 0);
   
-  const proteinPct = Math.min(protein / targetProtein, 1) * 100;
-  const carbsPct = Math.min(carbs / targetCarbs, 1) * 100;
-  const fatPct = Math.min(fat / targetFat, 1) * 100;
+  const proteinPct = targetProtein > 0 ? Math.min(protein / targetProtein, 1) * 100 : 0;
+  const carbsPct = targetCarbs > 0 ? Math.min(carbs / targetCarbs, 1) * 100 : 0;
+  const fatPct = targetFat > 0 ? Math.min(fat / targetFat, 1) * 100 : 0;
 
   const strokeW = 18;
   const radius = 36;
@@ -339,8 +339,8 @@ const RecentScansCard = ({ scans, loading }: { scans: any[], loading: boolean })
                     <div className="font-serif text-[#1e4832] mb-1 text-[15px]">{scan.meal_title || 'Unknown Meal'}</div>
                     <div className="font-mono text-[10px] text-[#8ba797] flex gap-3">
                       <span>{timeStr}</span>
-                      <span>{scan.total_calories || 0} kcal</span>
-                      {scan.total_protein_g ? <span>{Math.round(scan.total_protein_g)}g Protein</span> : null}
+                      <span>{Math.round(Number(scan.total_calories) || 0)} kcal</span>
+                      {scan.total_protein_g ? <span>{Math.round(Number(scan.total_protein_g))}g Protein</span> : null}
                     </div>
                   </div>
                 </div>

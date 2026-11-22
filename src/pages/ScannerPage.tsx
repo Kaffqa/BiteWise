@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Camera, Image as ImageIcon, X, RefreshCw, AlertCircle, Loader2, ChevronLeft } from 'lucide-react';
+import { Camera, Image as ImageIcon, X, RefreshCw, AlertCircle, Loader2, ChevronLeft, ExternalLink } from 'lucide-react';
 import { Scan as PhosphorScan, ShieldCheck, Warning, ShieldWarning } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -186,7 +186,7 @@ export default function ScannerPage() {
         {/* Right Column: Result Card */}
         {result ? (
           <>
-            {/* Desktop View (Original) */}
+            {/* Desktop View */}
             <div className="hidden md:flex bg-white rounded-[4px] border border-[#e8efe9] p-8 flex-col shadow-sm overflow-y-auto h-full">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-serif text-[26px] text-[#1e4832] leading-tight pr-4">{result.mealTitle}</h3>
@@ -208,26 +208,28 @@ export default function ScannerPage() {
                 </p>
               )}
 
+              {/* Macros */}
               <div className="grid grid-cols-2 gap-3 mb-6">
                  <div className="bg-[#132c1e] p-4 rounded-[4px] flex flex-col items-center justify-center text-center">
-                   <span className="font-serif text-[32px] text-white">{result.totalNutrition?.calories}</span>
+                   <span className="font-serif text-[32px] text-white">{Math.round(Number(result.totalNutrition?.calories) || 0)}</span>
                    <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mt-1">Kcal</span>
                  </div>
                  <div className="bg-[#132c1e] p-4 rounded-[4px] flex flex-col items-center justify-center text-center">
-                   <span className="font-serif text-[32px] text-white">{result.totalNutrition?.proteinG}g</span>
+                   <span className="font-serif text-[32px] text-white">{Math.round(Number(result.totalNutrition?.proteinG) || 0)}g</span>
                    <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mt-1">Protein</span>
                  </div>
                  <div className="bg-[#132c1e] p-4 rounded-[4px] flex flex-col items-center justify-center text-center">
-                   <span className="font-serif text-[32px] text-white">{result.totalNutrition?.carbsG}g</span>
+                   <span className="font-serif text-[32px] text-white">{Math.round(Number(result.totalNutrition?.carbsG) || 0)}g</span>
                    <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mt-1">Carbs</span>
                  </div>
                  <div className="bg-[#132c1e] p-4 rounded-[4px] flex flex-col items-center justify-center text-center">
-                   <span className="font-serif text-[32px] text-white">{result.totalNutrition?.fatG}g</span>
+                   <span className="font-serif text-[32px] text-white">{Math.round(Number(result.totalNutrition?.fatG) || 0)}g</span>
                    <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mt-1">Fat</span>
                  </div>
               </div>
 
-              <div className="space-y-0 mb-8 border-t border-[#e8efe9]">
+              {/* Detected Items */}
+              <div className="space-y-0 mb-6 border-t border-[#e8efe9]">
                 {Array.isArray(result.items) && result.items.map((item: any, i: number) => {
                   const isAllergen = item.detectedAllergens && item.detectedAllergens.length > 0;
                   
@@ -272,28 +274,40 @@ export default function ScannerPage() {
                 })}
               </div>
 
-              <div className="mt-auto flex gap-3">
-                 <button 
-                   onClick={async () => {
-                     if (result.safetyStatus !== 'safe') {
-                       await confirmMealLog();
-                     }
-                     navigate('/app/history');
-                   }} 
-                   className="flex-2 w-full py-4 rounded-[4px] bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#c0d4c8] font-mono text-[13px] text-white hover:brightness-110 hover:-translate-y-0.5 active:scale-95 active:translate-y-0 hover:shadow-[0_8px_16px_rgba(0,0,0,0.2)] transition-all duration-200 shadow-md flex justify-center items-center gap-2"
-                 >
-                   + Add to Daily Log
-                 </button>
-                 <button 
-                   onClick={handleReset} 
-                   className="flex-1 py-4 rounded-[4px] border border-[#d1dfd6] font-mono text-[13px] text-[#8ba797] hover:border-[#5a8069] hover:text-[#5a8069] bg-white transition-all shadow-sm flex justify-center items-center gap-2 whitespace-nowrap px-4"
-                 >
-                   <RefreshCw size={16} /> Rescan
-                 </button>
+              {/* Actions Area */}
+              <div className="mt-auto flex flex-col gap-3 pt-2">
+                 {(result as any).id && (
+                   <button 
+                     onClick={() => navigate(`/app/scan/${(result as any).id}`)} 
+                     className="w-full py-3.5 rounded-[4px] bg-[#f0f5f2] border border-[#c5d1c9] font-mono text-[13px] text-[#1e4832] font-semibold hover:bg-[#e4ede7] hover:border-[#1e4832] transition-all flex items-center justify-center gap-2 shadow-xs group"
+                   >
+                     <span>View Full Analysis Details</span>
+                     <ExternalLink size={15} className="group-hover:translate-x-0.5 transition-transform" />
+                   </button>
+                 )}
+                 <div className="flex gap-3">
+                   <button 
+                     onClick={async () => {
+                       if (result.safetyStatus !== 'safe') {
+                         await confirmMealLog();
+                       }
+                       navigate('/app/history');
+                     }} 
+                     className="flex-2 w-full py-4 rounded-[4px] bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#c0d4c8] font-mono text-[13px] text-white hover:brightness-110 hover:-translate-y-0.5 active:scale-95 active:translate-y-0 hover:shadow-[0_8px_16px_rgba(0,0,0,0.2)] transition-all duration-200 shadow-md flex justify-center items-center gap-2"
+                   >
+                     + Add to Daily Log
+                   </button>
+                   <button 
+                     onClick={handleReset} 
+                     className="flex-1 py-4 rounded-[4px] border border-[#d1dfd6] font-mono text-[13px] text-[#8ba797] hover:border-[#5a8069] hover:text-[#5a8069] bg-white transition-all shadow-sm flex justify-center items-center gap-2 whitespace-nowrap px-4"
+                   >
+                     <RefreshCw size={16} /> Rescan
+                   </button>
+                 </div>
               </div>
             </div>
 
-            {/* Mobile View (New Design) */}
+            {/* Mobile View */}
             <div className="flex md:hidden bg-white rounded-[4px] border border-[#e8efe9] p-6 flex-col shadow-sm overflow-y-auto">
               {/* Header / Overview */}
               <div className="flex flex-col items-center text-center mb-6">
@@ -307,7 +321,7 @@ export default function ScannerPage() {
                   {result.safetyStatus === 'danger' && <ShieldWarning size={14} weight="fill" />}
                   {result.safetyStatus === 'safe' 
                     ? 'Safe' 
-                    : `${result.items.filter((i: any) => i.safetyStatus === 'caution' || i.safetyStatus === 'danger').length} Flagged`}
+                    : `${result.items?.filter((i: any) => i.safetyStatus === 'caution' || i.safetyStatus === 'danger').length || 1} Flagged`}
                 </span>
                 
                 <h3 className="font-serif text-[32px] md:text-[26px] text-[#1e4832] leading-tight mb-4">{result.mealTitle}</h3>
@@ -322,19 +336,19 @@ export default function ScannerPage() {
               {/* Macros */}
               <div className="grid grid-cols-2 gap-3 mb-8 px-1 md:px-0">
                  <div className="bg-[#132c1e] py-6 px-2 rounded-[4px] flex flex-col items-center justify-center text-center">
-                   <span className="font-serif text-[42px] leading-none text-white mb-2">{result.totalNutrition?.calories}</span>
+                   <span className="font-serif text-[42px] leading-none text-white mb-2">{Math.round(Number(result.totalNutrition?.calories) || 0)}</span>
                    <span className="font-mono text-[11px] text-[#8ba797]">Kcal</span>
                  </div>
                  <div className="bg-[#132c1e] py-6 px-2 rounded-[4px] flex flex-col items-center justify-center text-center">
-                   <span className="font-serif text-[42px] leading-none text-white mb-2">{result.totalNutrition?.proteinG}g</span>
+                   <span className="font-serif text-[42px] leading-none text-white mb-2">{Math.round(Number(result.totalNutrition?.proteinG) || 0)}g</span>
                    <span className="font-mono text-[11px] text-[#8ba797]">Protein</span>
                  </div>
                  <div className="bg-[#132c1e] py-6 px-2 rounded-[4px] flex flex-col items-center justify-center text-center">
-                   <span className="font-serif text-[42px] leading-none text-white mb-2">{result.totalNutrition?.carbsG}g</span>
+                   <span className="font-serif text-[42px] leading-none text-white mb-2">{Math.round(Number(result.totalNutrition?.carbsG) || 0)}g</span>
                    <span className="font-mono text-[11px] text-[#8ba797]">Carbs</span>
                  </div>
                  <div className="bg-[#132c1e] py-6 px-2 rounded-[4px] flex flex-col items-center justify-center text-center">
-                   <span className="font-serif text-[42px] leading-none text-white mb-2">{result.totalNutrition?.fatG}g</span>
+                   <span className="font-serif text-[42px] leading-none text-white mb-2">{Math.round(Number(result.totalNutrition?.fatG) || 0)}g</span>
                    <span className="font-mono text-[11px] text-[#8ba797]">Fat</span>
                  </div>
               </div>
@@ -377,24 +391,35 @@ export default function ScannerPage() {
               </div>
 
               {/* Bottom Actions */}
-              <div className="mt-auto flex gap-3 pt-2">
-                 <button 
-                   onClick={async () => {
-                     if (result.safetyStatus !== 'safe') {
-                       await confirmMealLog();
-                     }
-                     navigate('/app/history');
-                   }} 
-                   className="flex-1 py-[15px] rounded-[4px] bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#c0d4c8] font-mono text-[14px] text-white hover:brightness-110 hover:-translate-y-0.5 active:scale-95 active:translate-y-0 hover:shadow-[0_8px_16px_rgba(0,0,0,0.2)] transition-all duration-200 shadow-md flex justify-center items-center gap-2 font-medium"
-                 >
-                   + Add to Daily Log
-                 </button>
-                 <button 
-                   onClick={handleReset} 
-                   className="w-[56px] h-[56px] shrink-0 rounded-[4px] border border-[#d1dfd6] flex items-center justify-center text-[#8ba797] hover:border-[#5a8069] hover:text-[#5a8069] bg-white transition-all shadow-sm"
-                 >
-                   <RefreshCw size={18} />
-                 </button>
+              <div className="mt-auto flex flex-col gap-2.5 pt-2">
+                 {(result as any).id && (
+                   <button 
+                     onClick={() => navigate(`/app/scan/${(result as any).id}`)} 
+                     className="w-full py-3.5 rounded-[4px] bg-[#f0f5f2] border border-[#c5d1c9] font-mono text-[13px] text-[#1e4832] font-semibold hover:bg-[#e4ede7] hover:border-[#1e4832] transition-all flex items-center justify-center gap-2 shadow-xs group"
+                   >
+                     <span>View Full Analysis Details</span>
+                     <ExternalLink size={15} className="group-hover:translate-x-0.5 transition-transform" />
+                   </button>
+                 )}
+                 <div className="flex gap-3">
+                   <button 
+                     onClick={async () => {
+                       if (result.safetyStatus !== 'safe') {
+                         await confirmMealLog();
+                       }
+                       navigate('/app/history');
+                     }} 
+                     className="flex-1 py-[15px] rounded-[4px] bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#c0d4c8] font-mono text-[14px] text-white hover:brightness-110 hover:-translate-y-0.5 active:scale-95 active:translate-y-0 hover:shadow-[0_8px_16px_rgba(0,0,0,0.2)] transition-all duration-200 shadow-md flex justify-center items-center gap-2 font-medium"
+                   >
+                     + Add to Daily Log
+                   </button>
+                   <button 
+                     onClick={handleReset} 
+                     className="w-[56px] h-[56px] shrink-0 rounded-[4px] border border-[#d1dfd6] flex items-center justify-center text-[#8ba797] hover:border-[#5a8069] hover:text-[#5a8069] bg-white transition-all shadow-sm"
+                   >
+                     <RefreshCw size={18} />
+                   </button>
+                 </div>
               </div>
             </div>
           </>
