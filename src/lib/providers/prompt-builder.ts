@@ -11,6 +11,7 @@ export function buildSystemPrompt(profile: UserHealthProfile, consumedToday?: Co
   const intolerances = profile.intolerances?.length ? profile.intolerances.join(', ') : 'None specified';
   const conditions = profile.medicalConditions?.length ? profile.medicalConditions.join(', ') : 'None specified';
   const diet = profile.dietaryPreferences?.length ? profile.dietaryPreferences.join(', ') : 'None specified';
+  const medications = profile.medications?.length ? profile.medications.join(', ') : 'None specified';
 
   const targetCalories = profile.targetCalories || 2000;
   const targetSodiumMg = profile.targetSodiumMg || 2300;
@@ -30,6 +31,7 @@ User's Health Profile:
 - Intolerances: ${intolerances}
 - Medical Conditions: ${conditions}
 - Dietary Preferences: ${diet}
+- Current Active Medications: ${medications}
 
 User's Daily Nutrition Context:
 - Daily Calorie Target: ${targetCalories} kcal
@@ -55,7 +57,18 @@ Instructions:
    - Write a concise 1-2 sentence summary explaining the daily impact.
    - If this meal causes the user to EXCEED any daily limit, also add a health warning with severity 'medium'.
 9. In "recommendations", suggest adjustments for remaining meals if user is close to or exceeding limits.
-10. You MUST return ONLY valid JSON matching the exact schema provided. Do not include markdown formatting or extra text.
+10. SMART SWAP RULE: If safetyStatus is 'caution' or 'danger', or if total calories exceed 500 kcal, or limits are exceeded, generate 2-3 healthier, culturally relevant food alternatives in "smartAlternatives". For each: specify originalItem, alternativeName, reason (why this is safer/healthier), calories, proteinG, carbsG, fatG, safetyStatus ('safe' or 'caution'), and tags (e.g. ["Lower Calorie", "Low GI", "Allergen-Free", "Indonesian Local"]). If safe, provide 1 lighter option.
+11. DRUG-FOOD INTERACTION RULE: If user has medications listed (${medications}), check all detected food ingredients against them. Detect interactions such as: Warfarin with Vitamin K greens (spinach/kale), Statins or Amlodipine with Grapefruit, ACE Inhibitors with excess Potassium (bananas/avocado), MAOIs with Tyramine (fermented foods/aged cheese), Levothyroxine with high Calcium/Soy, Metformin with Alcohol, NSAIDs with high caffeine. Populate "drugInteractions" with medication, interactingIngredient, severity ('low', 'moderate', 'severe'), mechanism (biochemical explanation), and recommendation (e.g., "Allow 2-3 hours between medication and meal"). If none, return empty array [].
+12. GLYCEMIC ANALYSIS RULE: Estimate the glycemic impact of this meal in "glycemicAnalysis". Calculate:
+   - estimatedGI: 0-100 (e.g. 75 for white rice, 45 for brown rice/vegetables)
+   - glycemicLoad: number (GI * net carbs / 100)
+   - spikeLevel: 'low' (peak <120 mg/dL), 'moderate' (120-150 mg/dL), 'high' (>150 mg/dL)
+   - peakGlucoseMgDl: estimated peak blood sugar (e.g. 110-175 mg/dL)
+   - timeToBaselineMinutes: typically 120-180 min
+   - fiberMitigationFactor: 0.0 to 1.0 (how effectively meal's fiber/protein dampens spike)
+   - tipToReduceSpike: practical hack (e.g. "Eat veggies & protein first before carbs to flatten spike by 30%")
+   - curveDataPoints: array of 13 data points at minutes [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180] showing baseline ~90 mg/dL, rise to peak, and return to baseline.
+13. You MUST return ONLY valid JSON matching the exact schema provided. Do not include markdown formatting or extra text.
 
 Safety Classification Rules:
 - Critical: Contains known allergens for the user.
@@ -71,6 +84,7 @@ export function buildTextSystemPrompt(profile: UserHealthProfile): string {
   const intolerances = profile.intolerances?.length ? profile.intolerances.join(', ') : 'None specified';
   const conditions = profile.medicalConditions?.length ? profile.medicalConditions.join(', ') : 'None specified';
   const diet = profile.dietaryPreferences?.length ? profile.dietaryPreferences.join(', ') : 'None specified';
+  const medications = profile.medications?.length ? profile.medications.join(', ') : 'None specified';
 
   return `You are an expert nutritionist, food scientist, and dietary safety analyst. Your task is to analyze the user's food description and return a strict JSON object.
 
@@ -79,13 +93,17 @@ User's Health Profile:
 - Intolerances: ${intolerances}
 - Medical Conditions: ${conditions}
 - Dietary Preferences: ${diet}
+- Current Active Medications: ${medications}
 
 Instructions:
 1. Parse the user's description of their meal.
 2. Estimate portion sizes, identify each food item, estimate nutrition per item.
 3. Cross-reference all identified ingredients against the user's health profile.
 4. Flag any warnings with severity levels ('low', 'medium', 'high', 'critical').
-5. You MUST return ONLY valid JSON matching the exact schema provided. Do not include markdown formatting or extra text.
+5. SMART SWAP: Suggest 2-3 healthier/lighter alternative meals in "smartAlternatives".
+6. DRUG INTERACTIONS: Check ingredients against medications (${medications}) in "drugInteractions".
+7. GLYCEMIC ANALYSIS: Estimate GI, Glycemic Load, spike level, curve points in "glycemicAnalysis".
+8. You MUST return ONLY valid JSON matching the exact schema provided. Do not include markdown formatting or extra text.
 
 Safety Classification Rules:
 - Critical: Contains known allergens for the user.
@@ -181,6 +199,66 @@ export const FOOD_ANALYSIS_SCHEMA = {
         summary: { type: "string" }
       },
       required: ["caloriesConsumedBefore", "caloriesAfterThisMeal", "caloriesRemaining", "percentageOfDailyTarget", "exceedsLimit", "summary"]
+    },
+    smartAlternatives: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          originalItem: { type: "string" },
+          alternativeName: { type: "string" },
+          reason: { type: "string" },
+          calories: { type: "number" },
+          proteinG: { type: "number" },
+          carbsG: { type: "number" },
+          fatG: { type: "number" },
+          safetyStatus: { type: "string", enum: ["safe", "caution"] },
+          tags: {
+            type: "array",
+            items: { type: "string" }
+          }
+        },
+        required: ["originalItem", "alternativeName", "reason", "calories", "safetyStatus", "tags"]
+      }
+    },
+    drugInteractions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          medication: { type: "string" },
+          interactingIngredient: { type: "string" },
+          severity: { type: "string", enum: ["low", "moderate", "severe"] },
+          mechanism: { type: "string" },
+          recommendation: { type: "string" },
+          source: { type: "string" }
+        },
+        required: ["medication", "interactingIngredient", "severity", "mechanism", "recommendation"]
+      }
+    },
+    glycemicAnalysis: {
+      type: "object",
+      properties: {
+        estimatedGI: { type: "number" },
+        glycemicLoad: { type: "number" },
+        spikeLevel: { type: "string", enum: ["low", "moderate", "high"] },
+        peakGlucoseMgDl: { type: "number" },
+        timeToBaselineMinutes: { type: "number" },
+        curveDataPoints: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              minutesAfterEating: { type: "number" },
+              glucoseMgDl: { type: "number" }
+            },
+            required: ["minutesAfterEating", "glucoseMgDl"]
+          }
+        },
+        tipToReduceSpike: { type: "string" },
+        fiberMitigationFactor: { type: "number" }
+      },
+      required: ["estimatedGI", "glycemicLoad", "spikeLevel", "peakGlucoseMgDl", "curveDataPoints", "tipToReduceSpike"]
     },
     recommendations: {
       type: "array",

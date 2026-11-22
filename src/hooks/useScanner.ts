@@ -55,6 +55,7 @@ export function useScanner() {
         intolerances: profile.intolerances || [],
         medicalConditions: profile.medical_conditions || [],
         dietaryPreferences: profile.dietary_preferences || [],
+        medications: (profile as any).medications || [],
         targetCalories: profile.target_calories || 2000,
         targetSodiumMg: profile.target_sodium_mg || 2300,
         targetSugarG: profile.target_sugar_g || 50,
@@ -99,7 +100,13 @@ export function useScanner() {
         total_fiber_g: analysisResult.totalNutrition?.fiberG,
         total_sugar_g: analysisResult.totalNutrition?.sugarG,
         total_sodium_mg: analysisResult.totalNutrition?.sodiumMg,
-        raw_ai_response: analysisResult.dailyImpact,
+        raw_ai_response: {
+          ...(analysisResult.dailyImpact || {}),
+          dailyImpact: analysisResult.dailyImpact,
+          smartAlternatives: analysisResult.smartAlternatives || [],
+          drugInteractions: analysisResult.drugInteractions || [],
+          glycemicAnalysis: analysisResult.glycemicAnalysis || null,
+        },
       };
 
       // @ts-ignore
@@ -199,6 +206,20 @@ export function useScanner() {
             message: `Eating ${analysisResult.mealTitle} will put you over your daily limit by ${Math.abs(analysisResult.dailyImpact.caloriesRemaining || 0)} kcal!`,
             is_read: false
           });
+        }
+
+        // 3. Drug Interaction Alert
+        if (analysisResult.drugInteractions && analysisResult.drugInteractions.length > 0) {
+          const severeInteraction = analysisResult.drugInteractions.find(d => d.severity === 'severe');
+          if (severeInteraction) {
+            newNotifs.push({
+              user_id: user.id,
+              type: 'alert',
+              title: 'Critical Drug Interaction!',
+              message: `Interaction detected between ${severeInteraction.interactingIngredient} and ${severeInteraction.medication}! Review recommendations before consuming.`,
+              is_read: false
+            });
+          }
         }
 
         if (newNotifs.length > 0) {
