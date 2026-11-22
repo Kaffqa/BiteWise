@@ -75,6 +75,7 @@ export interface Database {
           intolerances: string[];
           medical_conditions: string[];
           dietary_preferences: string[];
+          medications: string[];
           // Status
           is_onboarding_completed: boolean;
           created_at: string;

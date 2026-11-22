@@ -55,6 +55,55 @@ export interface IngredientExplanation {
 }
 
 /**
+ * Smart Swap alternative suggestion
+ */
+export interface SmartSwapAlternative {
+  originalItem: string;
+  alternativeName: string;
+  reason: string;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  safetyStatus: 'safe' | 'caution';
+  tags: string[]; // e.g. ['lower-calorie', 'allergen-free', 'local']
+}
+
+/**
+ * Food-Drug interaction warning
+ */
+export interface DrugInteraction {
+  medication: string;
+  interactingIngredient: string;
+  severity: 'low' | 'moderate' | 'severe';
+  mechanism: string;
+  recommendation: string;
+  source?: string;
+}
+
+/**
+ * Glycemic spike simulation data point
+ */
+export interface GlycemicDataPoint {
+  minutesAfterEating: number;
+  glucoseMgDl: number;
+}
+
+/**
+ * Glycemic analysis for the meal
+ */
+export interface GlycemicAnalysis {
+  estimatedGI: number; // 0-100
+  glycemicLoad: number;
+  spikeLevel: 'low' | 'moderate' | 'high';
+  peakGlucoseMgDl: number;
+  timeToBaselineMinutes: number;
+  curveDataPoints: GlycemicDataPoint[];
+  tipToReduceSpike: string;
+  fiberMitigationFactor?: number; // 0-1, how much fiber/protein reduces the spike
+}
+
+/**
  * Full result object returned from the AI food analysis
  */
 export interface FoodAnalysisResult {
@@ -68,9 +117,13 @@ export interface FoodAnalysisResult {
   ingredientExplanations: IngredientExplanation[];
   recommendations: string[];
   dailyImpact?: DailyImpact;
-  rawResponse: unknown;
+  // === NEW 3 FEATURES ===
+  smartAlternatives?: SmartSwapAlternative[];
+  drugInteractions?: DrugInteraction[];
+  glycemicAnalysis?: GlycemicAnalysis;
+  rawResponse?: unknown;
   processingTimeMs: number;
-  modelVersion: string;
+  modelVersion?: string;
 }
 
 /**
@@ -81,6 +134,7 @@ export interface UserHealthProfile {
   intolerances: string[];
   medicalConditions: string[];
   dietaryPreferences: string[];
+  medications?: string[];
   targetCalories: number | null;
   targetSodiumMg: number | null;
   targetSugarG: number | null;

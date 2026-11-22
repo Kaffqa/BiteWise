@@ -57,6 +57,7 @@ CREATE TABLE profiles (
     intolerances TEXT[] DEFAULT '{}',
     medical_conditions TEXT[] DEFAULT '{}',
     dietary_preferences TEXT[] DEFAULT '{}',
+    medications TEXT[] DEFAULT '{}',
     
     -- App state
     is_onboarding_completed BOOLEAN DEFAULT FALSE,
@@ -68,6 +69,7 @@ CREATE TABLE profiles (
 CREATE INDEX idx_profiles_allergies ON profiles USING GIN (allergies);
 CREATE INDEX idx_profiles_medical_conditions ON profiles USING GIN (medical_conditions);
 CREATE INDEX idx_profiles_dietary_preferences ON profiles USING GIN (dietary_preferences);
+CREATE INDEX idx_profiles_medications ON profiles USING GIN (medications);
 
 -- ============================================================================
 -- 3. TABLE: food_scans
