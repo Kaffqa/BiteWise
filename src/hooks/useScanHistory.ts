@@ -31,7 +31,7 @@ export function useScanHistory(pageSize: number = 20, initialFilters: ScanFilter
       
       let query = supabase
         .from('food_scans')
-        .select('*, meal_logs(id)')
+        .select('id, user_id, image_url, thumbnail_url, scan_type, meal_title, confidence_score, safety_status, health_warnings, total_calories, total_protein_g, total_carbs_g, total_fat_g, total_fiber_g, total_sugar_g, total_sodium_mg, created_at, meal_logs(id)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .range(currentOffset, currentOffset + pageSize - 1);

@@ -130,36 +130,57 @@ export function useIngredients() {
   }, [user, profile, fetchIngredients]);
 
   const syncFromScan = useCallback(async (scanItems: any[], scanId: string) => {
-    if (!user || !profile) return;
+    if (!user || !profile || !scanItems?.length) return;
     try {
-      const newItemsToEnrich: any[] = [];
-      
-      for (const item of scanItems) {
-        const ingredientName = item.item_name || item.name;
-        if (!ingredientName) continue;
+      // 1. Collect valid ingredient names
+      const validItems = scanItems.map(item => ({
+        name: (item.item_name || item.name || '').trim(),
+        item
+      })).filter(x => Boolean(x.name));
 
-        // Check if exists
-        const { data: existing } = await supabase
-          .from('user_ingredients')
-          .select('id, times_encountered, commonly_found_in')
-          .eq('user_id', user.id)
-          .eq('ingredient_name', ingredientName)
-          .maybeSingle();
+      if (validItems.length === 0) return;
 
+      const ingredientNames = Array.from(new Set(validItems.map(x => x.name)));
+
+      // 2. Single Batch SELECT to check existing ingredients in one query
+      const { data: existingRecords } = await supabase
+        .from('user_ingredients')
+        .select('id, ingredient_name, times_encountered')
+        .eq('user_id', user.id)
+        .in('ingredient_name', ingredientNames);
+
+      const existingMap = new Map<string, { id: string; times_encountered: number }>();
+      (existingRecords || []).forEach((rec: any) => {
+        existingMap.set(rec.ingredient_name.toLowerCase(), rec);
+      });
+
+      const existingUpdates: Promise<any>[] = [];
+      const newItemsToEnrich: { ingredientName: string; item: any }[] = [];
+
+      for (const { name: ingredientName, item } of validItems) {
+        const existing = existingMap.get(ingredientName.toLowerCase());
         if (existing) {
-          // Update existing: increment counter
-          await (supabase
-            .from('user_ingredients') as any)
-            .update({
-              times_encountered: (existing as any).times_encountered + 1,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', (existing as any).id);
+          existingUpdates.push(
+            (supabase.from('user_ingredients') as any)
+              .update({
+                times_encountered: (existing.times_encountered || 1) + 1,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', existing.id)
+          );
         } else {
-          newItemsToEnrich.push({ ingredientName, item });
+          if (!newItemsToEnrich.some(x => x.ingredientName.toLowerCase() === ingredientName.toLowerCase())) {
+            newItemsToEnrich.push({ ingredientName, item });
+          }
         }
       }
 
+      // Execute updates in parallel
+      if (existingUpdates.length > 0) {
+        await Promise.all(existingUpdates);
+      }
+
+      // 3. Batch enrich & insert new ingredients
       if (newItemsToEnrich.length > 0) {
         const namesToEnrich = newItemsToEnrich.map(i => i.ingredientName);
         const userProfile = {
@@ -179,8 +200,7 @@ export function useIngredients() {
           console.error('Enrichment failed, falling back to basic data', enrichErr);
         }
 
-        // Insert new items
-        for (const { ingredientName, item } of newItemsToEnrich) {
+        const newIngredientsPayload = newItemsToEnrich.map(({ ingredientName, item }) => {
           const enriched = enrichedData.find((e: any) => e.ingredientName?.toLowerCase() === ingredientName.toLowerCase()) || {};
 
           let status: 'Safe' | 'Flagged' | 'Allergen' = 'Safe';
@@ -195,21 +215,24 @@ export function useIngredients() {
             if (!enriched.reason) reason = 'Flagged as caution during food scan analysis.';
           }
 
-          await supabase
-            .from('user_ingredients')
-            .insert({
-              user_id: user.id,
-              ingredient_name: ingredientName,
-              category: enriched.category || item.category || 'Unknown',
-              status,
-              reason,
-              description: enriched.description || item.portion_description || item.portionDescription || null,
-              commonly_found_in: enriched.commonlyFoundIn || [],
-              source: 'scan',
-              first_detected_scan_id: scanId,
-              times_encountered: 1,
-            } as any);
-        }
+          return {
+            user_id: user.id,
+            ingredient_name: ingredientName,
+            category: enriched.category || item.category || 'Unknown',
+            status,
+            reason,
+            description: enriched.description || item.portion_description || item.portionDescription || null,
+            commonly_found_in: enriched.commonlyFoundIn || [],
+            source: 'scan' as const,
+            first_detected_scan_id: scanId,
+            times_encountered: 1,
+          };
+        });
+
+        // Single Batch INSERT
+        await supabase
+          .from('user_ingredients')
+          .insert(newIngredientsPayload as any);
       }
     } catch (err) {
       console.error('Error syncing ingredients from scan:', err);
