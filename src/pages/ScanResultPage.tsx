@@ -224,18 +224,17 @@ export default function ScanResultPage() {
   const handleUpdatePortion = async (mealLog: any, multiplier: number) => {
     try {
       setIsMutating(true);
-      const scaled = scaleMealMacros(
-        {
-          calories: scanRecord.total_calories,
-          protein_g: scanRecord.total_protein_g,
-          carbs_g: scanRecord.total_carbs_g,
-          fat_g: scanRecord.total_fat_g,
-          fiber_g: scanRecord.total_fiber_g,
-          sugar_g: scanRecord.total_sugar_g,
-          sodium_mg: scanRecord.total_sodium_mg,
-        },
-        multiplier
-      );
+      const prevMult = Number(mealLog.portion_multiplier) || 1;
+      const baseMacros = {
+        calories: (Number(mealLog.calories) || Number(scanRecord.total_calories) || 0) / prevMult,
+        protein_g: (Number(mealLog.protein_g) || Number(scanRecord.total_protein_g) || 0) / prevMult,
+        carbs_g: (Number(mealLog.carbs_g) || Number(scanRecord.total_carbs_g) || 0) / prevMult,
+        fat_g: (Number(mealLog.fat_g) || Number(scanRecord.total_fat_g) || 0) / prevMult,
+        fiber_g: (Number(mealLog.fiber_g) || Number(scanRecord.total_fiber_g) || 0) / prevMult,
+        sugar_g: (Number(mealLog.sugar_g) || Number(scanRecord.total_sugar_g) || 0) / prevMult,
+        sodium_mg: (Number(mealLog.sodium_mg) || Number(scanRecord.total_sodium_mg) || 0) / prevMult,
+      };
+      const scaled = scaleMealMacros(baseMacros, multiplier);
       await updateMealLog(mealLog.id, { portion_multiplier: multiplier, ...scaled });
       await fetchScanData();
     } catch (err) {

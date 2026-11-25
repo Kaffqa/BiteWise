@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { MagnifyingGlass, CaretLeft, CaretRight, SpinnerGap, Sparkle } from '@phosphor-icons/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -26,15 +27,23 @@ export default function IngredientsPage() {
     generateSeedIngredients,
   } = useIngredients();
 
+  const location = useLocation();
+  const navigate = useNavigate();
   const [selectedIngredient, setSelectedIngredient] = useState<any | null>(null);
   const [localSearch, setLocalSearch] = useState(searchQuery || '');
 
-  // Sync initial query if needed
+  // Support pre-filtering from Header global search
   useEffect(() => {
-    if (searchQuery && !localSearch) {
+    const state = location.state as { searchQuery?: string } | null;
+    if (state?.searchQuery) {
+      setLocalSearch(state.searchQuery);
+      setSearchQuery(state.searchQuery);
+      setSelectedIngredient(null);
+      navigate(location.pathname, { replace: true, state: null });
+    } else if (searchQuery && !localSearch) {
       setLocalSearch(searchQuery);
     }
-  }, []);
+  }, [location.state, location.pathname, navigate, setSearchQuery]);
 
   // Debounce effect
   useEffect(() => {

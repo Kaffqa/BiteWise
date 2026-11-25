@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
@@ -38,6 +38,9 @@ export default function App() {
             <Route path="help" element={<HelpPage />} />
           </Route>
         </Route>
+
+        {/* Catch-all fallback to prevent blank screens on invalid routes */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>
   );

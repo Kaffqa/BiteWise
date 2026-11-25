@@ -91,16 +91,22 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-        {/* Backdrop */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 bg-[#163323]/40 backdrop-blur-sm"
-        />
+    <>
+      <AnimatePresence>
+        <div
+          key="auth-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+        >
+          {/* Backdrop */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-[#163323]/40 backdrop-blur-sm"
+          />
 
         {/* Modal Card */}
         <motion.div 
@@ -171,7 +177,8 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
             
             <AnimatePresence>
               {error && (
-                <motion.div 
+                <motion.div
+                  key="auth-error"
                   initial={{ opacity: 0, height: 0, marginBottom: 0 }}
                   animate={{ opacity: 1, height: 'auto', marginBottom: 24 }}
                   exit={{ opacity: 0, height: 0, marginBottom: 0 }}
@@ -183,7 +190,8 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
                 </motion.div>
               )}
               {success && (
-                <motion.div 
+                <motion.div
+                  key="auth-success"
                   initial={{ opacity: 0, height: 0, marginBottom: 0 }}
                   animate={{ opacity: 1, height: 'auto', marginBottom: 24 }}
                   exit={{ opacity: 0, height: 0, marginBottom: 0 }}
@@ -314,12 +322,13 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
             )}
           </div>
         </motion.div>
-      </div>
+        </div>
+      </AnimatePresence>
 
       <PrivacyPolicyModal 
         isOpen={isPrivacyModalOpen} 
         onClose={() => setPrivacyModalOpen(false)} 
       />
-    </AnimatePresence>
+    </>
   );
 }

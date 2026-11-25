@@ -26,7 +26,7 @@ const FAQS = [
   },
   {
     question: "Can I log meals manually without scanning?",
-    answer: "Yes! You can go to the Daily Log (History) page and click the '+' button on any meal time to manually enter calories and macros."
+    answer: "Yes! Go to Daily Log (History) and click '+ Add Food' on any meal section, or type directly in the top search bar—our AI will parse your meal description and check allergies, medications, and glycemic impact."
   }
 ];
 
@@ -161,12 +161,12 @@ export default function HelpPage() {
             </div>
             
             <div className="flex flex-col gap-3 relative z-10">
-              <button 
-                onClick={() => alert("Thanks for your feedback! This feature will be available soon.")}
+              <a 
+                href="mailto:support@bitewise.app?subject=Bug%20Report%20-%20BiteWise"
                 className="flex items-center justify-center gap-2 bg-white text-[#1a3825] font-mono text-xs py-3 px-6 rounded-[4px] hover:bg-[#f0f5f2] transition-colors shadow-sm"
               >
                 <Bug size={16} /> Report a Bug
-              </button>
+              </a>
               <a 
                 href="mailto:support@bitewise.app"
                 className="flex items-center justify-center gap-2 border border-[#5c8b71] bg-transparent text-white font-mono text-xs py-3 px-6 rounded-[4px] hover:bg-white/10 transition-colors"

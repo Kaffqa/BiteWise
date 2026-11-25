@@ -302,18 +302,17 @@ export function HistoryPage() {
   const handlePortionChange = async (scan: any, mealLog: any, newMultiplier: number) => {
     try {
       setBusyScanId(scan.id);
-      const scaled = scaleMealMacros(
-        {
-          calories: scan.total_calories,
-          protein_g: scan.total_protein_g,
-          carbs_g: scan.total_carbs_g,
-          fat_g: scan.total_fat_g,
-          fiber_g: scan.total_fiber_g,
-          sugar_g: scan.total_sugar_g,
-          sodium_mg: scan.total_sodium_mg,
-        },
-        newMultiplier
-      );
+      const prevMult = Number(mealLog.portion_multiplier) || 1;
+      const baseMacros = {
+        calories: (Number(mealLog.calories) || Number(scan.total_calories) || 0) / prevMult,
+        protein_g: (Number(mealLog.protein_g) || Number(scan.total_protein_g) || 0) / prevMult,
+        carbs_g: (Number(mealLog.carbs_g) || Number(scan.total_carbs_g) || 0) / prevMult,
+        fat_g: (Number(mealLog.fat_g) || Number(scan.total_fat_g) || 0) / prevMult,
+        fiber_g: (Number(mealLog.fiber_g) || Number(scan.total_fiber_g) || 0) / prevMult,
+        sugar_g: (Number(mealLog.sugar_g) || Number(scan.total_sugar_g) || 0) / prevMult,
+        sodium_mg: (Number(mealLog.sodium_mg) || Number(scan.total_sodium_mg) || 0) / prevMult,
+      };
+      const scaled = scaleMealMacros(baseMacros, newMultiplier);
 
       await updateMealLog(mealLog.id, {
         portion_multiplier: newMultiplier,
@@ -327,11 +326,12 @@ export function HistoryPage() {
     }
   };
 
-  const handleDeleteEntry = async (scan: any, mealLog?: any) => {
+  const handleDeleteEntry = async (scan: any, _mealLog?: any) => {
     try {
       setBusyScanId(scan.id);
-      if (mealLog?.id) {
-        await removeMealLog(mealLog.id);
+      const logs = Array.isArray(scan.meal_logs) ? scan.meal_logs : [];
+      for (const l of logs) {
+        if (l?.id) await removeMealLog(l.id);
       }
       if (scan.image_url) {
         await deleteScanImage(scan.image_url);

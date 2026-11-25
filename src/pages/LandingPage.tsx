@@ -89,7 +89,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div id="home" className="min-h-screen flex flex-col font-sans selection:bg-[#163323] selection:text-white bg-[#F6F4EB] md:bg-white p-2 md:p-4">
+    <div id="home" className="min-h-screen flex flex-col font-sans selection:bg-[#163323] selection:text-white bg-[#F6F4EB] md:bg-white p-2 md:p-4 overflow-x-hidden">
       {/* Navbar */}
       <header className={`w-full px-5 md:px-6 lg:px-12 py-3 md:py-4 flex justify-between items-center sticky top-2 md:top-4 z-[60] transition-all duration-300 ${
         isMobileMenuOpen 
@@ -98,21 +98,21 @@ export default function LandingPage() {
             ? 'bg-white/95 backdrop-blur rounded-[8px] shadow-md border border-[#e8efe9]' 
             : 'bg-white rounded-t-[32px] shadow-sm border border-[#e8efe9] md:border-transparent'
       }`}>
-          <div className="flex items-center gap-3 relative z-[60]">
+          <div className="flex items-center gap-3 relative z-[60] shrink-0">
             {/* Logo Icon */}
             <BrandLogo className="w-8 h-8 md:w-9 md:h-9 object-contain" />
             <span className="font-sans text-[20px] md:text-[22px] font-black tracking-tight text-[#163323]">BiteWise</span>
           </div>
           
           <button 
-            className="flex md:hidden items-center justify-center p-2 -mr-2 relative z-[60] text-[#163323] transition-transform active:scale-95"
+            className="flex lg:hidden items-center justify-center p-2 -mr-2 relative z-[60] text-[#163323] transition-transform active:scale-95"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-label="Toggle Menu"
           >
             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
 
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden lg:flex items-center gap-8">
             <nav className="flex items-center gap-6">
               {[
                 { id: 'home', label: 'Home' },
@@ -124,19 +124,19 @@ export default function LandingPage() {
                 <a 
                   key={link.id}
                   href={`#${link.id}`} 
-                  className={`text-[13px] font-mono transition-colors ${activeSection === link.id ? 'font-bold text-[#163323]' : 'font-medium text-gray-500 hover:text-[#163323]'}`}
+                  className={`text-[13px] font-mono whitespace-nowrap transition-colors ${activeSection === link.id ? 'font-bold text-[#163323]' : 'font-medium text-gray-500 hover:text-[#163323]'}`}
                 >
                   {link.label}
                 </a>
               ))}
             </nav>
-            <button onClick={() => setIsAuthModalOpen(true)} className="bg-gradient-to-b from-[#5c8263] to-[#2a4e35] hover:from-[#4e7255] hover:to-[#21422b] text-white px-7 py-[11px] rounded-full text-[12px] font-mono shadow-[inset_0_0_0_1.5px_rgba(255,255,255,0.45),_0_6px_12px_rgba(22,51,35,0.3)] border-[2.5px] border-[#1a3825] transition-all flex items-center justify-center font-medium tracking-wide">
+            <button onClick={() => setIsAuthModalOpen(true)} className="bg-gradient-to-b from-[#5c8263] to-[#2a4e35] hover:from-[#4e7255] hover:to-[#21422b] text-white px-7 py-[11px] rounded-full text-[12px] font-mono shadow-[inset_0_0_0_1.5px_rgba(255,255,255,0.45),_0_6px_12px_rgba(22,51,35,0.3)] border-[2.5px] border-[#1a3825] transition-all flex items-center justify-center font-medium tracking-wide whitespace-nowrap">
               Get Started
             </button>
           </div>
       </header>
       
-      {/* Mobile Menu Overlay */}
+      {/* Mobile / Tablet Menu Overlay */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div 
@@ -144,7 +144,7 @@ export default function LandingPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[55] bg-white/95 backdrop-blur-md pt-[100px] px-6 flex flex-col md:hidden overflow-y-auto pb-10"
+            className="fixed inset-0 z-[55] bg-white/95 backdrop-blur-md pt-[100px] px-6 flex flex-col lg:hidden overflow-y-auto pb-10"
           >
             <nav className="flex flex-col mt-4">
               {[

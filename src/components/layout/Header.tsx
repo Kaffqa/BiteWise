@@ -74,7 +74,7 @@ export default function Header() {
         } catch(e) {}
 
         const combined = [
-          ...(meals || []).map((m: any) => ({ type: 'meal' as const, id: m.id, title: m.meal_title, subtitle: `${m.total_calories || 0} kcal` })),
+          ...(meals || []).map((m: any) => ({ type: 'meal' as const, id: m.id, title: m.meal_title, subtitle: `${Math.round(Number(m.total_calories) || 0)} kcal` })),
           ...ingredients.map((i: any) => ({ type: 'ingredient' as const, id: i.id, title: i.ingredient_name, subtitle: i.category, status: i.status }))
         ];
         
@@ -134,7 +134,7 @@ export default function Header() {
                         setShowDropdown(false);
                         setSearchQuery('');
                         if (r.type === 'meal') navigate(`/app/scan/${r.id}`);
-                        else navigate(`/app/ingredients`);
+                        else navigate('/app/ingredients', { state: { searchQuery: r.title } });
                       }}
                       className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#f0f5f2] cursor-pointer transition-colors"
                     >

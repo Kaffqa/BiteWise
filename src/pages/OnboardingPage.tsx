@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { generatePersonalIngredients } from '@/lib/ai-provider';
 import { toUserHealthProfile } from '@/lib/profile-utils';
 import { OnboardingData } from '@/types/common.types';
@@ -479,10 +480,11 @@ export default function OnboardingPage() {
     if (currentStep < steps.length - 1) {
       setCurrentStep(c => c + 1);
     } else {
-      let birthDate = new Date().toISOString();
+      const currentYear = new Date().getFullYear();
+      let birthDate = `${currentYear - 25}-01-01`;
       if (data.age) {
-        const currentYear = new Date().getFullYear();
-        birthDate = new Date(`${currentYear - parseInt(data.age)}-01-01`).toISOString();
+        const parsedAge = Math.max(1, Math.min(120, parseInt(data.age, 10) || 25));
+        birthDate = `${currentYear - parsedAge}-01-01`;
       }
 
       let finalWeightKg = data.weight_kg;
@@ -516,7 +518,6 @@ export default function OnboardingPage() {
         generatePersonalIngredients(userProfile)
           .then(async (aiIngredients) => {
             if (aiIngredients && aiIngredients.length > 0) {
-              const { supabase } = await import('@/lib/supabase');
               const rows = aiIngredients.map((ing: any) => ({
                 user_id: user.id,
                 ingredient_name: ing.ingredientName,
