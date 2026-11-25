@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { SquaresFour, Scan, BookOpenText, Note, Question, Gear } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
+import BrandLogo from '@/components/ui/BrandLogo';
 
 function NavItem({ to, exact, icon: Icon, label }: { to: string, exact?: boolean, icon: any, label: string }) {
   return (
@@ -34,8 +35,8 @@ export default function Sidebar() {
     <aside className="w-64 flex-shrink-0 bg-white border-r border-[#e8efe9] flex flex-col h-screen sticky top-0 hidden md:flex">
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-[#e8efe9] shrink-0">
-        <div className="text-[22px] font-black text-[#1e4832] tracking-tight flex items-center gap-2">
-          <img src="/logo.png?v=2" alt="BiteWise Logo" className="w-11 h-11 object-contain" />
+        <div className="text-[22px] font-black text-[#1e4832] tracking-tight flex items-center gap-2.5">
+          <BrandLogo className="w-9 h-9 object-contain" />
           BiteWise
         </div>
       </div>

@@ -5,6 +5,7 @@ import { ArrowRight, Leaf, ShieldCheck, Activity, ScanLine, Menu, X } from 'luci
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from '@/components/ui/Skeleton';
 import AuthModal from '@/components/auth/AuthModal';
+import BrandLogo from '@/components/ui/BrandLogo';
 
 export default function LandingPage() {
   const { user, loading } = useAuth();
@@ -99,7 +100,7 @@ export default function LandingPage() {
       }`}>
           <div className="flex items-center gap-3 relative z-[60]">
             {/* Logo Icon */}
-            <img src="/logo.png?v=2" alt="BiteWise Logo" className="w-8 h-8 md:w-11 md:h-11 object-contain" />
+            <BrandLogo className="w-8 h-8 md:w-9 md:h-9 object-contain" />
             <span className="font-sans text-[20px] md:text-[22px] font-black tracking-tight text-[#163323]">BiteWise</span>
           </div>
           
@@ -609,7 +610,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="w-full bg-white rounded-[8px] md:rounded-b-[32px] md:rounded-t-none border-t border-[#163323]/10 px-6 lg:px-12 py-10 flex flex-col md:flex-row justify-center md:justify-between items-center gap-6 md:gap-6 mt-0">
         <div className="flex items-center gap-3">
-          <img src="/logo.png?v=2" alt="BiteWise Logo" className="w-9 h-9 md:w-9 md:h-9" />
+          <BrandLogo className="w-9 h-9 object-contain" />
           <span className="text-[22px] font-bold text-[#163323] tracking-tight" style={{ fontFamily: "'DM Sans', sans-serif" }}>BiteWise</span>
         </div>
         <div className="text-[11px] md:text-[13px] font-mono text-[#163323]/70 tracking-wide text-center">

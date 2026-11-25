@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import PrivacyPolicyModal from './PrivacyPolicyModal';
+import BrandLogo from '@/components/ui/BrandLogo';
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -121,7 +122,7 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
 
           {/* Header */}
           <div className="pt-8 pb-4 px-8 text-center flex flex-col items-center border-b border-[#163323]/5">
-            <img src="/logo.png?v=2" alt="BiteWise" className="w-10 h-10 object-contain mb-5" />
+            <BrandLogo alt="BiteWise" className="w-10 h-10 object-contain mb-5" />
             
             {/* Segmented Control */}
             <div className="flex items-center bg-[#163323]/5 p-1 rounded-full mb-6 relative">

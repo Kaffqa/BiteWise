@@ -8,6 +8,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { AnimatePresence, motion } from 'framer-motion';
+import BrandLogo from '@/components/ui/BrandLogo';
 
 export default function Header() {
   const { profile } = useProfile();
@@ -90,8 +91,8 @@ export default function Header() {
 
   return (
     <header className="h-16 flex items-center justify-between px-6 bg-white sticky top-0 z-40 border-b border-[#e8efe9]">
-      <div className="md:hidden text-[22px] font-black text-[#1e4832] tracking-tight flex items-center gap-2">
-        <img src="/logo.png?v=2" alt="BiteWise Logo" className="w-11 h-11 object-contain" />
+      <div className="md:hidden text-[22px] font-black text-[#1e4832] tracking-tight flex items-center gap-2.5">
+        <BrandLogo className="w-9 h-9 object-contain" />
         BiteWise
       </div>
       
