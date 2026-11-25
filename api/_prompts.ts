@@ -1,12 +1,27 @@
-import type { UserHealthProfile, ConsumedToday } from '../../types/ai.types';
+export interface PromptUserHealthProfile {
+  allergies: string[];
+  intolerances: string[];
+  medicalConditions: string[];
+  dietaryPreferences: string[];
+  medications?: string[];
+  targetCalories: number | null;
+  targetSodiumMg: number | null;
+  targetSugarG: number | null;
+}
+
+export interface PromptConsumedToday {
+  calories: number;
+  sodiumMg: number;
+  sugarG: number;
+}
 
 /**
- * Builds the system prompt for the AI model based on the user's health profile.
- * @param profile - The user's health profile including allergies and conditions.
- * @param consumedToday - Optional data about what the user has already consumed today.
- * @returns A formatted system prompt string.
+ * Builds the system prompt for food image analysis based on user's health profile.
  */
-export function buildSystemPrompt(profile: UserHealthProfile, consumedToday?: ConsumedToday): string {
+export function buildSystemPrompt(
+  profile: PromptUserHealthProfile,
+  consumedToday?: PromptConsumedToday
+): string {
   const allergies = profile.allergies?.length ? profile.allergies.join(', ') : 'None specified';
   const intolerances = profile.intolerances?.length ? profile.intolerances.join(', ') : 'None specified';
   const conditions = profile.medicalConditions?.length ? profile.medicalConditions.join(', ') : 'None specified';
@@ -79,7 +94,10 @@ Safety Classification Rules:
 `;
 }
 
-export function buildTextSystemPrompt(profile: UserHealthProfile, consumedToday?: ConsumedToday): string {
+export function buildTextSystemPrompt(
+  profile: PromptUserHealthProfile,
+  consumedToday?: PromptConsumedToday
+): string {
   const allergies = profile.allergies?.length ? profile.allergies.join(', ') : 'None specified';
   const intolerances = profile.intolerances?.length ? profile.intolerances.join(', ') : 'None specified';
   const conditions = profile.medicalConditions?.length ? profile.medicalConditions.join(', ') : 'None specified';
@@ -131,161 +149,165 @@ Safety Classification Rules:
 `;
 }
 
-/**
- * Returns the default user prompt for food analysis.
- */
 export function buildUserPrompt(): string {
   return 'Analyze this food image. Identify all food items, estimate nutrition, and check for safety concerns based on my health profile.';
 }
 
 export const FOOD_ANALYSIS_SCHEMA = {
-  type: "object",
+  type: 'object',
   properties: {
-    scanType: { type: "string", enum: ["meal_photo", "nutrition_label", "barcode", "not_food"] },
-    mealTitle: { type: "string" },
-    confidenceScore: { type: "number" },
-    safetyStatus: { type: "string", enum: ["safe", "caution", "danger", "unknown"] },
+    scanType: { type: 'string', enum: ['meal_photo', 'nutrition_label', 'barcode', 'not_food'] },
+    mealTitle: { type: 'string' },
+    confidenceScore: { type: 'number' },
+    safetyStatus: { type: 'string', enum: ['safe', 'caution', 'danger', 'unknown'] },
     healthWarnings: {
-      type: "array",
+      type: 'array',
       items: {
-        type: "object",
+        type: 'object',
         properties: {
-          type: { type: "string" },
-          severity: { type: "string", enum: ["low", "medium", "high", "critical"] },
-          message: { type: "string" }
+          type: { type: 'string' },
+          severity: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
+          message: { type: 'string' },
         },
-        required: ["type", "severity", "message"]
-      }
+        required: ['type', 'severity', 'message'],
+      },
     },
     items: {
-      type: "array",
+      type: 'array',
       items: {
-        type: "object",
+        type: 'object',
         properties: {
-          name: { type: "string" },
-          estimatedWeightG: { type: "number" },
-          portionDescription: { type: "string" },
-          calories: { type: "number" },
-          proteinG: { type: "number" },
-          carbsG: { type: "number" },
-          fatG: { type: "number" },
-          fiberG: { type: "number" },
-          sugarG: { type: "number" },
-          sodiumMg: { type: "number" },
-          confidenceScore: { type: "number" },
-          safetyStatus: { type: "string", enum: ["safe", "caution", "danger", "unknown"] },
+          name: { type: 'string' },
+          estimatedWeightG: { type: 'number' },
+          portionDescription: { type: 'string' },
+          calories: { type: 'number' },
+          proteinG: { type: 'number' },
+          carbsG: { type: 'number' },
+          fatG: { type: 'number' },
+          fiberG: { type: 'number' },
+          sugarG: { type: 'number' },
+          sodiumMg: { type: 'number' },
+          confidenceScore: { type: 'number' },
+          safetyStatus: { type: 'string', enum: ['safe', 'caution', 'danger', 'unknown'] },
           detectedAllergens: {
-            type: "array",
-            items: { type: "string" }
-          }
+            type: 'array',
+            items: { type: 'string' },
+          },
         },
-        required: ["name", "calories"]
-      }
+        required: ['name', 'calories'],
+      },
     },
     totalNutrition: {
-      type: "object",
+      type: 'object',
       properties: {
-        calories: { type: "number" },
-        proteinG: { type: "number" },
-        carbsG: { type: "number" },
-        fatG: { type: "number" },
-        fiberG: { type: "number" },
-        sugarG: { type: "number" },
-        sodiumMg: { type: "number" }
+        calories: { type: 'number' },
+        proteinG: { type: 'number' },
+        carbsG: { type: 'number' },
+        fatG: { type: 'number' },
+        fiberG: { type: 'number' },
+        sugarG: { type: 'number' },
+        sodiumMg: { type: 'number' },
       },
-      required: ["calories", "proteinG", "carbsG", "fatG"]
+      required: ['calories', 'proteinG', 'carbsG', 'fatG'],
     },
     ingredientExplanations: {
-      type: "array",
+      type: 'array',
       items: {
-        type: "object",
+        type: 'object',
         properties: {
-          term: { type: "string" },
-          explanation: { type: "string" }
-        }
-      }
+          term: { type: 'string' },
+          explanation: { type: 'string' },
+        },
+      },
     },
     dailyImpact: {
-      type: "object",
+      type: 'object',
       properties: {
-        caloriesConsumedBefore: { type: "number" },
-        caloriesAfterThisMeal: { type: "number" },
-        caloriesRemaining: { type: "number" },
-        percentageOfDailyTarget: { type: "number" },
-        exceedsLimit: { type: "boolean" },
-        summary: { type: "string" }
+        caloriesConsumedBefore: { type: 'number' },
+        caloriesAfterThisMeal: { type: 'number' },
+        caloriesRemaining: { type: 'number' },
+        percentageOfDailyTarget: { type: 'number' },
+        exceedsLimit: { type: 'boolean' },
+        summary: { type: 'string' },
       },
-      required: ["caloriesConsumedBefore", "caloriesAfterThisMeal", "caloriesRemaining", "percentageOfDailyTarget", "exceedsLimit", "summary"]
+      required: [
+        'caloriesConsumedBefore',
+        'caloriesAfterThisMeal',
+        'caloriesRemaining',
+        'percentageOfDailyTarget',
+        'exceedsLimit',
+        'summary',
+      ],
     },
     smartAlternatives: {
-      type: "array",
+      type: 'array',
       items: {
-        type: "object",
+        type: 'object',
         properties: {
-          originalItem: { type: "string" },
-          alternativeName: { type: "string" },
-          reason: { type: "string" },
-          calories: { type: "number" },
-          proteinG: { type: "number" },
-          carbsG: { type: "number" },
-          fatG: { type: "number" },
-          safetyStatus: { type: "string", enum: ["safe", "caution"] },
+          originalItem: { type: 'string' },
+          alternativeName: { type: 'string' },
+          reason: { type: 'string' },
+          calories: { type: 'number' },
+          proteinG: { type: 'number' },
+          carbsG: { type: 'number' },
+          fatG: { type: 'number' },
+          safetyStatus: { type: 'string', enum: ['safe', 'caution'] },
           tags: {
-            type: "array",
-            items: { type: "string" }
-          }
+            type: 'array',
+            items: { type: 'string' },
+          },
         },
-        required: ["originalItem", "alternativeName", "reason", "calories", "safetyStatus", "tags"]
-      }
+        required: ['originalItem', 'alternativeName', 'reason', 'calories', 'safetyStatus', 'tags'],
+      },
     },
     drugInteractions: {
-      type: "array",
+      type: 'array',
       items: {
-        type: "object",
+        type: 'object',
         properties: {
-          medication: { type: "string" },
-          interactingIngredient: { type: "string" },
-          severity: { type: "string", enum: ["low", "moderate", "severe"] },
-          mechanism: { type: "string" },
-          recommendation: { type: "string" },
-          source: { type: "string" }
+          medication: { type: 'string' },
+          interactingIngredient: { type: 'string' },
+          severity: { type: 'string', enum: ['low', 'moderate', 'severe'] },
+          mechanism: { type: 'string' },
+          recommendation: { type: 'string' },
+          source: { type: 'string' },
         },
-        required: ["medication", "interactingIngredient", "severity", "mechanism", "recommendation"]
-      }
+        required: ['medication', 'interactingIngredient', 'severity', 'mechanism', 'recommendation'],
+      },
     },
     glycemicAnalysis: {
-      type: "object",
+      type: 'object',
       properties: {
-        estimatedGI: { type: "number" },
-        glycemicLoad: { type: "number" },
-        spikeLevel: { type: "string", enum: ["low", "moderate", "high"] },
-        peakGlucoseMgDl: { type: "number" },
-        timeToBaselineMinutes: { type: "number" },
+        estimatedGI: { type: 'number' },
+        glycemicLoad: { type: 'number' },
+        spikeLevel: { type: 'string', enum: ['low', 'moderate', 'high'] },
+        peakGlucoseMgDl: { type: 'number' },
+        timeToBaselineMinutes: { type: 'number' },
         curveDataPoints: {
-          type: "array",
+          type: 'array',
           items: {
-            type: "object",
+            type: 'object',
             properties: {
-              minutesAfterEating: { type: "number" },
-              glucoseMgDl: { type: "number" }
+              minutesAfterEating: { type: 'number' },
+              glucoseMgDl: { type: 'number' },
             },
-            required: ["minutesAfterEating", "glucoseMgDl"]
-          }
+            required: ['minutesAfterEating', 'glucoseMgDl'],
+          },
         },
-        tipToReduceSpike: { type: "string" },
-        fiberMitigationFactor: { type: "number" }
+        tipToReduceSpike: { type: 'string' },
+        fiberMitigationFactor: { type: 'number' },
       },
-      required: ["estimatedGI", "glycemicLoad", "spikeLevel", "peakGlucoseMgDl", "curveDataPoints", "tipToReduceSpike"]
+      required: ['estimatedGI', 'glycemicLoad', 'spikeLevel', 'peakGlucoseMgDl', 'curveDataPoints', 'tipToReduceSpike'],
     },
     recommendations: {
-      type: "array",
-      items: { type: "string" }
-    }
+      type: 'array',
+      items: { type: 'string' },
+    },
   },
-  required: ["scanType", "mealTitle", "safetyStatus", "healthWarnings", "items", "totalNutrition", "dailyImpact"]
+  required: ['scanType', 'mealTitle', 'safetyStatus', 'healthWarnings', 'items', 'totalNutrition', 'dailyImpact'],
 };
 
-export function buildIngredientsSystemPrompt(profile: UserHealthProfile): string {
+export function buildIngredientsSystemPrompt(profile: PromptUserHealthProfile): string {
   const allergies = profile.allergies?.length ? profile.allergies.join(', ') : 'None specified';
   const intolerances = profile.intolerances?.length ? profile.intolerances.join(', ') : 'None specified';
   const conditions = profile.medicalConditions?.length ? profile.medicalConditions.join(', ') : 'None specified';
@@ -314,34 +336,33 @@ Instructions:
 }
 
 export const INGREDIENTS_GENERATION_SCHEMA = {
-  type: "object",
+  type: 'object',
   properties: {
     ingredients: {
-      type: "array",
+      type: 'array',
       items: {
-        type: "object",
+        type: 'object',
         properties: {
-          ingredientName: { type: "string" },
-          category: { type: "string" },
-          status: { type: "string", enum: ["Safe", "Flagged", "Allergen"] },
-          reason: { type: "string" },
-          description: { type: "string" },
+          ingredientName: { type: 'string' },
+          category: { type: 'string' },
+          status: { type: 'string', enum: ['Safe', 'Flagged', 'Allergen'] },
+          reason: { type: 'string' },
+          description: { type: 'string' },
           commonlyFoundIn: {
-            type: "array",
+            type: 'array',
             items: {
-              type: "object",
+              type: 'object',
               properties: {
-                icon: { type: "string" },
-                label: { type: "string" }
+                icon: { type: 'string' },
+                label: { type: 'string' },
               },
-              required: ["icon", "label"]
-            }
-          }
+              required: ['icon', 'label'],
+            },
+          },
         },
-        required: ["ingredientName", "category", "status", "reason", "description", "commonlyFoundIn"]
-      }
-    }
+        required: ['ingredientName', 'category', 'status', 'reason', 'description', 'commonlyFoundIn'],
+      },
+    },
   },
-  required: ["ingredients"]
+  required: ['ingredients'],
 };
-

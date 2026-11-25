@@ -5,8 +5,9 @@ import {
   buildIngredientsSystemPrompt,
   FOOD_ANALYSIS_SCHEMA,
   INGREDIENTS_GENERATION_SCHEMA,
-} from '../src/lib/providers/prompt-builder';
-import type { ConsumedToday, UserHealthProfile } from '../src/types/ai.types';
+  type PromptConsumedToday,
+  type PromptUserHealthProfile,
+} from './_prompts.js';
 
 export interface ServerRequest {
   method?: string;
@@ -141,8 +142,8 @@ async function callGroq(
   if (action === 'analyzeFood') {
     const { imageBase64, userProfile, consumedToday } = payload as {
       imageBase64: string;
-      userProfile: UserHealthProfile;
-      consumedToday?: ConsumedToday;
+      userProfile: PromptUserHealthProfile;
+      consumedToday?: PromptConsumedToday;
     };
     const imageUrl = imageBase64.startsWith('data:')
       ? imageBase64
@@ -168,8 +169,8 @@ async function callGroq(
   } else if (action === 'analyzeText') {
     const { description, userProfile, consumedToday } = payload as {
       description: string;
-      userProfile: UserHealthProfile;
-      consumedToday?: ConsumedToday;
+      userProfile: PromptUserHealthProfile;
+      consumedToday?: PromptConsumedToday;
     };
     const fullSystemPrompt = `${buildTextSystemPrompt(userProfile, consumedToday)}\n\nEnsure your response is a valid JSON object matching exactly this JSON schema:\n${JSON.stringify(FOOD_ANALYSIS_SCHEMA, null, 2)}`;
 
@@ -187,7 +188,7 @@ async function callGroq(
       response_format: { type: 'json_object' },
     };
   } else if (action === 'generateIngredients') {
-    const { userProfile } = payload as { userProfile: UserHealthProfile };
+    const { userProfile } = payload as { userProfile: PromptUserHealthProfile };
     const fullSystemPrompt = `${buildIngredientsSystemPrompt(userProfile)}\n\nEnsure your response is a valid JSON object matching exactly this JSON schema:\n${JSON.stringify(INGREDIENTS_GENERATION_SCHEMA, null, 2)}`;
 
     requestBody = {
@@ -203,7 +204,7 @@ async function callGroq(
   } else if (action === 'enrichIngredients') {
     const { ingredientNames, userProfile } = payload as {
       ingredientNames: string[];
-      userProfile: UserHealthProfile;
+      userProfile: PromptUserHealthProfile;
     };
     const prompt = `You are a nutrition expert. I have a list of food items or ingredients: ${JSON.stringify(ingredientNames)}.
 For each item, provide detailed information.
@@ -281,8 +282,8 @@ async function callGemini(
   if (action === 'analyzeFood') {
     const { imageBase64, userProfile, consumedToday } = payload as {
       imageBase64: string;
-      userProfile: UserHealthProfile;
-      consumedToday?: ConsumedToday;
+      userProfile: PromptUserHealthProfile;
+      consumedToday?: PromptConsumedToday;
     };
     const base64Data = imageBase64.includes('base64,')
       ? imageBase64.split('base64,')[1]
@@ -307,8 +308,8 @@ async function callGemini(
   } else if (action === 'analyzeText') {
     const { description, userProfile, consumedToday } = payload as {
       description: string;
-      userProfile: UserHealthProfile;
-      consumedToday?: ConsumedToday;
+      userProfile: PromptUserHealthProfile;
+      consumedToday?: PromptConsumedToday;
     };
 
     requestBody = {
@@ -329,7 +330,7 @@ async function callGemini(
       },
     };
   } else if (action === 'generateIngredients') {
-    const { userProfile } = payload as { userProfile: UserHealthProfile };
+    const { userProfile } = payload as { userProfile: PromptUserHealthProfile };
     requestBody = {
       contents: [
         {
@@ -346,7 +347,7 @@ async function callGemini(
   } else if (action === 'enrichIngredients') {
     const { ingredientNames, userProfile } = payload as {
       ingredientNames: string[];
-      userProfile: UserHealthProfile;
+      userProfile: PromptUserHealthProfile;
     };
     const prompt = `You are a nutrition expert. I have a list of food items or ingredients: ${JSON.stringify(ingredientNames)}.
 For each item, provide detailed information.

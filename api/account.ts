@@ -5,7 +5,7 @@ import {
   type EnvRecord,
   type ServerRequest,
   type ServerResponse,
-} from './_ai-handler';
+} from './_ai-handler.js';
 
 const getNodeEnv = (): EnvRecord => ((globalThis as any).process?.env ?? {}) as EnvRecord;
 

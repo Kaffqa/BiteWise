@@ -35,7 +35,9 @@ export class ProxyProvider implements AIProvider {
 
       const contentType = response.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
-        throw new Error('AI proxy returned an invalid non-JSON response.');
+        const preview = await response.text().catch(() => '');
+        const cleanPreview = preview.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+        throw new Error(`AI proxy returned non-JSON (${response.status}): ${cleanPreview || response.statusText}`);
       }
 
       const json = await response.json();
