@@ -1,163 +1,216 @@
-# BiteWise
+<p align="center">
+  <img src="public/logo.svg" width="100" height="100" alt="BiteWise Logo" />
+</p>
 
-![React](https://img.shields.io/badge/React-19-blue?style=flat-square&logo=react)
-![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?style=flat-square&logo=vite)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=flat-square&logo=tailwind-css)
-![Supabase](https://img.shields.io/badge/Supabase-Database-3ECF8E?style=flat-square&logo=supabase)
-![AI Powered](https://img.shields.io/badge/AI-Groq_%7C_Gemini-FF6F00?style=flat-square)
+<h1 align="center">BiteWise</h1>
 
-BiteWise is an advanced, AI-powered food tracking and personalized nutrition assistant. Designed for modern health-conscious individuals, the platform leverages computer vision and large language models to analyze dietary habits, estimate nutritional values, and ensure food safety based on personal medical profiles.
+<p align="center">
+  <strong>The Honest Truth in Every Single Bite</strong><br />
+  <em>AI-Powered Personalized Nutrition, Food Safety & Metabolic Health Platform</em>
+</p>
 
----
-
-## Table of Contents
-
-1. [Key Features](#key-features)
-2. [Technology Stack](#technology-stack)
-3. [Technical Documentation](#technical-documentation)
-    - [System Architecture](#system-architecture)
-    - [Database Schema](#database-schema)
-    - [Project Structure](#project-structure)
-4. [Installation Guide](#installation-guide)
-5. [Environment Configuration](#environment-configuration)
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-6.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS v4" />
+  <img src="https://img.shields.io/badge/Supabase-Database-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
+  <img src="https://img.shields.io/badge/AI_Gateway-Groq_%7C_Gemini-FF6F00?style=for-the-badge&logo=google-gemini&logoColor=white" alt="Dual AI Gateway" />
+  <img src="https://img.shields.io/badge/Deployment-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel" />
+</p>
 
 ---
 
-## Key Features
-
-- **AI-Driven Visual Food Analysis**  
-  Utilizing Groq (Primary) and Gemini (Fallback) APIs, users can capture or upload images of their meals. The platform accurately identifies the food, estimates portion sizes, and extracts key nutritional data.
-  
-- **Personalized Health & Safety Guardian**  
-  BiteWise cross-references identified ingredients against the user's specific health profile. It actively flags potential allergens, dietary intolerances, and risks related to preexisting medical conditions.
-
-- **Realtime Automated Notifications**  
-  Powered by Supabase Realtime, the application proactively alerts users via a notification bell if they attempt to consume dangerous allergens or if a scanned meal exceeds their daily calorie targets.
-
-- **Dynamic Macro Tracking & TDEE Calculation**  
-  The system automatically calculates the user's Total Daily Energy Expenditure (TDEE) based on biometric data and lifestyle factors, offering a real-time dashboard to track daily nutritional targets.
+## 📌 Daftar Isi
+1. [Tentang BiteWise](#-tentang-bitewise)
+2. [Fitur Unggulan](#-fitur-unggulan)
+3. [Arsitektur Sistem & AI Gateway](#-arsitektur-sistem--ai-gateway)
+4. [Tech Stack](#-tech-stack)
+5. [Struktur Proyek](#-struktur-proyek)
+6. [Panduan Instalasi & Menjalankan](#-panduan-instalasi--menjalankan)
+7. [Konfigurasi Environment](#-konfigurasi-environment)
+8. [Tim Pengembang](#-tim-pengembang)
 
 ---
 
-## Technology Stack
+## 💡 Tentang BiteWise
 
-### Frontend Application
-- **Framework:** React 19 (TypeScript)
-- **Build Tool:** Vite 5.4
-- **Styling:** Tailwind CSS v4
-- **Icons:** Phosphor Icons & Lucide React
+Sebagian besar aplikasi pelacak kalori konvensional hanya berfokus pada kuantitas angka (kalori masuk vs kalori keluar). Padahal bagi individu dengan **alergi makanan, intoleransi, penyakit kronis (seperti diabetes atau hipertensi), maupun yang sedang mengonsumsi obat resep**, konsumsi makanan menyangkut **keamanan klinis dan dampak metabolik**.
 
-### Backend & Infrastructure
-- **Database:** Supabase (PostgreSQL)
-- **Realtime:** Supabase Realtime Subscriptions
-- **Security:** Strict Row Level Security (RLS) policies
-
-### Artificial Intelligence Services
-- **Primary Provider:** Groq API (`llama-3.3-70b-versatile`) for high-speed, low-latency inference.
-- **Alternative Provider:** Google Gemini API (`gemini-1.5-flash`) used as a seamless fallback.
+**BiteWise** hadir sebagai asisten gizi personal cerdas yang mentransformasikan foto makanan, label informasi nilai gizi, atau input teks natural menjadi:
+- Estimasi makronutrien dan kalori presisi.
+- Evaluasi keamanan 5 lapis terhadap profil kesehatan personal pengguna.
+- Deteksi interaksi biokimia obat–makanan (*drug-food interactions*).
+- Simulasi kurva respon gula darah (*glycemic curve*) 180 menit.
+- Rekomendasi alternatif menu yang lebih sehat (*Smart Swap*).
 
 ---
 
-## Technical Documentation
+## 🌟 Fitur Unggulan
 
-### System Architecture
+### 1. 📷 Multimodal AI Vision & OCR Scanner
+- **Deteksi Otomatis:** Mengenali apakah gambar yang diunggah berupa hidangan di piring (*plated meal*), tabel fakta nutrisi (*nutrition facts label*), atau daftar komposisi bahan kemasan (*ingredients list*).
+- **Proteksi Non-Makanan:** Menolak gambar non-konsumsi secara otomatis agar database riwayat tetap bersih.
+- **Natural-Language Food Logging:** Pengguna dapat mencatat makanan hanya dengan mengetikkan kalimat deskripsi natural (contoh: *"Semangkuk bubur ayam tanpa kacang dengan kecap asin"*).
 
-1. **AI Fallback Orchestration Pattern:** 
-   Located in `src/lib/providers/fallback-provider.ts`, the application uses a sophisticated adapter pattern to wrap multiple LLM providers. If the primary provider (Groq) fails due to rate limits or network issues, the system catches the error and seamlessly routes the payload to the secondary provider (Gemini) with zero downtime to the user.
+### 2. 🛡️ 5-Layer Personalized Health & Allergen Guardian
+Mencocokkan setiap bahan yang teridentifikasi secara ketat terhadap profil pribadi:
+- **Alergi & Intoleransi:** Mengelompokkan status *Safe*, *Caution*, atau *Danger* tanpa menghasilkan alarm palsu (*zero false-positive* pada alergen yang tidak dimiliki user).
+- **Kondisi Medis & Diet:** Memeriksa kesesuaian terhadap pantangan seperti diabetes, hipertensi, GERD, ginjal, maupun preferensi diet (vegan, keto, halal, dll).
+- **Plain-Language Explanations:** Menerjemahkan istilah zat aditif dan kimia industri menjadi bahasa yang mudah dimengerti.
 
-2. **Realtime Data Sync:** 
-   The application leverages PostgreSQL triggers and Supabase Realtime Channels to push automated alerts directly to the React frontend state, eliminating the need for client-side polling.
+### 3. 💊 Deteksi Interaksi Obat–Makanan (*Drug-Food Interactions*)
+Bila pengguna memasukkan obat aktif pada profil kesehatannya, sistem mengevaluasi interaksi kimiawi antara zat aktif obat dengan makanan (misal: *Warfarin* dengan sayuran tinggi Vitamin K, *Statin/Amlodipine* dengan *Grapefruit*, atau obat hipertensi dengan kelebihan kalium). Sistem menyediakan tingkat keparahan (*Low/Moderate/Severe*), mekanisme biokimia, serta saran jeda konsumsi yang aman.
 
-3. **Strict JSON Parsing:** 
-   The application enforces strict response schemas (`response_format: { type: "json_object" }`) ensuring that all AI responses map perfectly to internal TypeScript interfaces without hallucinating markdown.
+### 4. 📈 Simulasi Lonjakan Glikemik 180 Menit (*Glycemic Spike Impact*)
+- Memprediksi **Indeks Glikemik (GI)**, **Beban Glikemik (GL)**, dan estimasi lonjakan puncak gula darah (mg/dL).
+- Menampilkan grafik interaktif respon gula darah pasca makan selama 180 menit.
+- Memberikan saran praktis untuk meredam lonjakan glukosa (seperti mengonsumsi serat/protein terlebih dahulu sebelum karbohidrat).
 
-### Database Schema
+### 5. 🔄 Context-Aware Daily Limits & Smart Swap
+- Menghitung **BMR & TDEE** secara otomatis berdasarkan usia, jenis kelamin, tinggi, berat badan, dan level aktivitas.
+- Mengomparasikan nutrisi makanan dengan sisa kuota kalori, gula, dan natrium harian pengguna.
+- Menyarankan 2–3 alternatif makanan lokal yang lebih sehat (*Smart Swap*) saat makanan berisiko atau melebihi kuota gizi harian.
 
-The PostgreSQL database is highly normalized and optimized:
+### 6. 📚 Kamus Bahan AI Personal (*Ingredients Dictionary*)
+Secara otomatis membangun kamus bahan edukatif yang disesuaikan dengan kondisi medis pengguna untuk membantu mengenali bahan aman vs berbahaya saat berbelanja.
 
-- `profiles`: User demographics, biometric metrics, and health goals.
-- `food_scans` & `scan_items`: Historical ledger for AI analyses and detected ingredients.
-- `meal_logs` & `daily_nutrition_summaries`: Tracks daily caloric and macronutrient intake.
-- `user_ingredients`: Personalized dictionary of safe vs flagged ingredients.
-- `notifications`: Stores automated system alerts, equipped with Realtime extensions and RLS.
+---
 
-### Project Structure
+## 🏗️ Arsitektur Sistem & AI Gateway
+
+Aplikasi menggunakan arsitektur **Serverless AI Proxy Gateway** yang aman dengan pola *High-Availability Dual-Provider*:
+
+```
+[ Client (React 19 SPA) ]
+           │
+           │ HTTP POST (Disertai Bearer Supabase JWT)
+           ▼
+[ Vercel Serverless API Gateway (`/api/ai`) ]
+           │
+           ├── 1. Validasi Autentikasi Pengguna via Supabase Auth
+           ├── 2. Sanitasi Payload & Validasi Profil Kesehatan
+           │
+           ▼
+[ Dual-Provider Orchestration Engine ]
+    ├── Primary: Groq API
+    │   ├── Vision: qwen/qwen3.8-27b (Inference berkecepatan ultra-tinggi)
+    │   └── Text/JSON: openai/gpt-oss-120b (Penalaran nutrisi mendalam)
+    │
+    └── Fallback: Google Gemini API
+        └── Multimodal: gemini-3.6-flash (Transisi otomatis tanpa downtime)
+           │
+           ▼
+[ PostgreSQL Supabase (Database + Row-Level Security) ]
+```
+
+> **🔒 Keamanan Terjamin:** Semua API Key AI tersimpan secara aman di sisi server (Serverless Environment). Klien frontend tidak pernah memegang API Key, sehingga aman dari kebocoran kunci (*bundle secret leaks*).
+
+---
+
+## 💻 Tech Stack
+
+| Komponen | Teknologi | Keterangan |
+| :--- | :--- | :--- |
+| **Frontend Framework** | **React 19** + **TypeScript** | Arsitektur SPA modern, *strict typing*, komponen modular |
+| **Build Tool & Bundler** | **Vite 5.4** | Kompilasi ultra-cepat, HMR, dan optimasi build production |
+| **Styling & Design** | **Tailwind CSS v4** + **Framer Motion** | Tampilan elegan, interaksi fluida, responsif di semua perangkat |
+| **Iconography** | **Phosphor Icons** & **Lucide React** | Ikon antarmuka modern dan konsisten |
+| **Backend & Database** | **Supabase (PostgreSQL 15)** | Autentikasi JWT, Row-Level Security (RLS), Trigger metrik BMR/TDEE |
+| **Realtime Engine** | **Supabase Realtime** | Notifikasi instan saat terdeteksi bahan berbahaya |
+| **AI Inference** | **Groq Cloud** & **Google Gemini** | *Vision OCR*, *Natural Language Processing*, dan *JSON Schema Mode* |
+| **Deployment** | **Vercel** | Serverless functions untuk API Proxy dan edge hosting |
+
+---
+
+## 📁 Struktur Proyek
 
 ```text
+BiteWise/
+├── api/                        # Serverless Functions (Backend Gateway)
+│   ├── _ai-handler.ts          # Integrasi Groq & Gemini, orchestrator fallback
+│   ├── _prompts.ts             # System prompt gizi, deteksi obat, dan glikemik
+│   ├── account.ts              # Endpoint manajemen akun & data user
+│   └── ai.ts                   # Gateway publik AI terproteksi JWT
+├── public/                     # Aset statis & logo vektor (logo.svg, logo.png)
 ├── src/
-│   ├── components/       # Reusable modular UI components (Auth, Layout, UI primitives)
-│   ├── contexts/         # Global state management providers
-│   ├── hooks/            # Custom React hooks encapsulating data fetching and local state
-│   ├── lib/              # Core utilities, AI providers, and Supabase client
-│   ├── pages/            # Top-level route components acting as application views
-│   └── types/            # Strict TypeScript definitions and API interfaces
+│   ├── components/             # Komponen UI modular (Auth, Layout, Ingredients)
+│   ├── contexts/               # React Context (AuthContext, NutritionContext)
+│   ├── hooks/                  # Custom hooks (useScanner, useScanHistory, dll.)
+│   ├── lib/                    # Utilitas klien, skema Zod, dan Supabase client
+│   ├── pages/                  # Halaman aplikasi (Landing, Dashboard, Scanner, dll.)
+│   └── types/                  # Definisi antarmuka TypeScript
 ├── supabase/
-│   ├── schema.sql           # Database table definitions and triggers
-│   └── storage-policies.sql # Security rules for Supabase object storage
+│   ├── schema.sql              # Skema tabel PostgreSQL, RLS, dan trigger
+│   └── migrations/             # Migrasi database dan perbaikan profil
 ├── package.json
 └── vite.config.ts
 ```
 
 ---
 
-## Installation Guide
+## 🚀 Panduan Instalasi & Menjalankan
 
-Follow these instructions to deploy a local development environment of BiteWise.
+### Prasyarat
+- **Node.js** v18.0.0 atau lebih baru
+- Akun **Supabase** (untuk database dan autentikasi)
+- API Key **Groq** dan/atau **Google Gemini**
 
-### Prerequisites
-- **Node.js**: v18.0.0 or higher
-- **Package Manager**: npm or yarn
-- **Supabase**: An active Supabase project
-- **API Keys**: Access keys for Groq Console and Google Gemini Studio
+### Langkah Setup
 
-### Step-by-Step Setup
-
-1. **Clone the Repository**
+1. **Clone Repository**
    ```bash
-   git clone https://github.com/yourusername/BiteWise.git
+   git clone https://github.com/kaffqas/BiteWise.git
    cd BiteWise
    ```
 
-2. **Install Dependencies**
+2. **Instal Dependensi**
    ```bash
    npm install
    ```
 
-3. **Database Initialization**
-   - Navigate to your Supabase project dashboard and open the SQL Editor.
-   - Execute the SQL script located at `supabase/schema.sql` to generate the necessary tables and indexes.
-   - Execute the script at `supabase/storage-policies.sql` to enforce storage security policies.
-   - Run the custom SQL script to create the `notifications` table and RLS policies.
+3. **Inisialisasi Database Supabase**
+   - Buka SQL Editor di Dashboard Supabase Anda.
+   - Jalankan seluruh instruksi pada file `supabase/schema.sql` untuk membuat tabel, tipe enum, trigger BMR/TDEE, serta aturan Row-Level Security (RLS).
 
-4. **Environment Variables**
-   Duplicate the example environment file:
-   ```bash
-   cp .env.example .env
+4. **Konfigurasi Environment Variables**
+   Buat file `.env` di root direktori proyek:
+   ```env
+   # Supabase Client
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+   # Serverless AI Provider Configuration
+   VITE_AI_PROVIDER=fallback
+   GROQ_API_KEY=your-groq-api-key
+   GEMINI_API_KEY=your-gemini-api-key
    ```
-   *Refer to the Environment Configuration section below to populate the values.*
 
-5. **Start the Development Server**
+5. **Jalankan Aplikasi (Development)**
    ```bash
    npm run dev
    ```
-   The application will be accessible at `http://localhost:5173`.
+   Aplikasi dapat diakses melalui browser di `http://localhost:5173`.
+
+6. **Build untuk Production**
+   ```bash
+   npm run build
+   ```
 
 ---
 
-## Environment Configuration
+## 👥 Tim Pengembang
 
-Your `.env` file must contain the following keys:
+Platform **BiteWise** dikembangkan oleh tim multidisiplin yang memadukan keahlian rekayasa perangkat lunak, riset produk, dan perancangan pengalaman pengguna:
 
-| Variable Name | Description | Required |
-|---------------|-------------|----------|
-| `VITE_SUPABASE_URL` | The REST URL of your Supabase project. | Yes |
-| `VITE_SUPABASE_ANON_KEY` | The anonymous public API key for Supabase. | Yes |
-| `VITE_AI_PROVIDER` | Active AI provider (`groq`, `gemini`, or `fallback`). Defaults to `fallback`. | No |
-| `VITE_GROQ_API_KEY` | Your Groq API key (Primary). | Yes* |
-| `VITE_GEMINI_API_KEY` | Your Google Gemini API key (Fallback). | Yes* |
-
-*\* Note: For `fallback` mode, both API keys are required.*
+| No | Nama Anggota | Peran / Posisi | Fokus & Tanggung Jawab Utama |
+| :---: | :--- | :--- | :--- |
+| **1** | **Kaffqa Tegar Gayuh Pamungkas** | **Project Lead & Full Stack Developer** | Memimpin perancangan arsitektur sistem, integrasi *frontend & backend*, rekayasa *Serverless AI Gateway*, skema database PostgreSQL Supabase, serta optimasi *build & security*. |
+| **2** | **Desmonda Varel Robel Salim** | **Lead UI/UX Designer & Frontend Specialist** | Memimpin riset pengalaman pengguna (UX), pembuatan *wireframe & high-fidelity prototype*, implementasi *design system* antarmuka, serta animasi dan responsivitas tampilan. |
+| **3** | **Devi Nur Aini** | **Product Researcher & Technical Proposal Lead** | Memimpin analisis kebutuhan pengguna, riset regulasi pangan dan gizi, penyusunan struktur proposal teknis kompetisi, serta spesifikasi detail fungsionalitas produk. |
+| **4** | **Abidah Ardelia Kendra Wibowo** | **Business Analyst & Proposal Specialist** | Memimpin analisis pasar dan studi komparasi kompetitor, perumusan kelayakan bisnis (*business viability*), validasi data uji nutrisi, serta strategi dokumentasi proposal. |
 
 ---
 
-*Documentation generated for technical assessment and repository evaluation.*
+<p align="center">
+  Dibuat dengan ❤️ oleh Tim <strong>BiteWise</strong> untuk masa depan kesehatan pangan yang lebih sadar, aman, dan transparan.
+</p>
