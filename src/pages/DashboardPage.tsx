@@ -6,11 +6,12 @@ import { motion } from 'framer-motion';
 import { ScanLine, Loader2 } from 'lucide-react';
 import { Scan as PhosphorScan, ShieldCheck, ShieldWarning, Warning, Lightning } from '@phosphor-icons/react';
 import { Link, useNavigate } from 'react-router-dom';
-import { format, formatDistanceToNow, startOfDay, endOfDay } from 'date-fns';
+import { format, formatDistanceToNow, startOfDay, endOfDay, subDays } from 'date-fns';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmojiForIcon } from '@/lib/emoji-map';
+import { calculateStreakFromScans } from '@/lib/profile-utils';
 
 const AppleEmoji = ({ emoji, className = "w-4 h-4" }: { emoji: string, className?: string }) => {
   const codePoints = Array.from(emoji).map(c => c.codePointAt(0)?.toString(16));
@@ -101,7 +102,9 @@ const DailySummaryCard = ({ profile, todaySummary, loading }: any) => {
 
   const targetCalories = Math.round(Number(profile?.target_calories) || 2000);
   const consumed = Math.round(Number(todaySummary?.total_calories) || 0);
+  const isOverLimit = consumed > targetCalories;
   const remaining = Math.max(0, targetCalories - consumed);
+  const overBy = Math.max(0, consumed - targetCalories);
   const consumedPct = targetCalories > 0 ? Math.min(consumed / targetCalories, 1) : 0;
 
   const targetProtein = Math.round(Number(profile?.target_protein_g) || 130);
@@ -190,8 +193,12 @@ const DailySummaryCard = ({ profile, todaySummary, loading }: any) => {
                </g>
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-[52px] md:text-[42px] font-serif text-[#1e4832] leading-none">{remaining}</span>
-            <span className="text-[10px] font-mono text-[#8ba797] uppercase tracking-wider mt-2">Remaining</span>
+            <span className={`text-[52px] md:text-[42px] font-serif leading-none ${isOverLimit ? 'text-[#991b1b]' : 'text-[#1e4832]'}`}>
+              {isOverLimit ? `+${overBy}` : remaining}
+            </span>
+            <span className={`text-[10px] font-mono uppercase tracking-wider mt-2 ${isOverLimit ? 'text-[#991b1b]' : 'text-[#8ba797]'}`}>
+              {isOverLimit ? 'Over Limit' : 'Remaining'}
+            </span>
           </div>
         </div>
 
@@ -603,34 +610,19 @@ export default function DashboardPage() {
       if (scansCount !== null) setTotalScans(scansCount);
       if (flagsCount !== null) setTotalFlags(flagsCount);
 
-      // Calculate streak
+      // Calculate streak cleanly using shared helper (last 180 days window)
+      const sinceIso = subDays(new Date(), 180).toISOString();
       const { data: history } = await supabase
         .from('food_scans')
         .select('created_at')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .gte('created_at', sinceIso)
+        .order('created_at', { ascending: false })
+        .limit(500);
 
-      if (history && history.length > 0) {
-        let currentStreak = 0;
-        let checkDate = startOfDay(new Date());
-        
-        // Extract unique days (midnight timestamps) where scans occurred
-        const scanDays = new Set(
-          history.map((s: any) => startOfDay(new Date(s.created_at)).getTime())
-        );
-
-        // Check if there's a scan today or yesterday to start the streak
-        const today = checkDate.getTime();
-        const yesterday = today - 86400000;
-
-        if (scanDays.has(today) || scanDays.has(yesterday)) {
-          let checkTime = scanDays.has(today) ? today : yesterday;
-          while (scanDays.has(checkTime)) {
-            currentStreak++;
-            checkTime -= 86400000; // go back 1 day
-          }
-        }
-        setStreakDays(currentStreak);
+      if (history) {
+        const { streakCount } = calculateStreakFromScans(history as Array<{ created_at: string }>);
+        setStreakDays(streakCount);
       }
     }
     fetchStats();
@@ -653,12 +645,12 @@ export default function DashboardPage() {
               0 0 0 15 -6
             " />
           </filter>
+          <linearGradient id="lightning-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="#e55941" offset="0%" />
+            <stop stopColor="#e68846" offset="50%" />
+            <stop stopColor="#e7ac4b" offset="100%" />
+          </linearGradient>
         </defs>
-        <linearGradient id="lightning-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop stopColor="#e55941" offset="0%" />
-          <stop stopColor="#e68846" offset="50%" />
-          <stop stopColor="#e7ac4b" offset="100%" />
-        </linearGradient>
       </svg>
       <div className="max-w-7xl mx-auto w-full">
         {/* Mobile Layout (hidden on lg) */}

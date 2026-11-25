@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
+import { supabase } from '@/lib/supabase';
+import { deleteAllUserScanImages } from '@/lib/storage';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { LogOut, User, Ruler, Weight as WeightIcon, Calendar, Activity, Target as TargetIcon, Zap, Flame, ShieldAlert, Heart, Utensils, Edit3, Trash2, Pill } from 'lucide-react';
+import { LogOut, User, Ruler, Weight as WeightIcon, Calendar, Activity, Target as TargetIcon, Zap, Flame, ShieldAlert, Heart, Utensils, Edit3, Trash2, Pill, AlertTriangle, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { differenceInYears, parseISO } from 'date-fns';
 import EditSettingsModal from '@/components/settings/EditSettingsModal';
@@ -13,9 +16,14 @@ function snakeToTitle(str: string) {
 }
 
 export default function SettingsPage() {
-  const { signOut } = useAuth();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const { profile, loading, updateProfile } = useProfile();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
+  const [isDeletingData, setIsDeletingData] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -58,6 +66,66 @@ export default function SettingsPage() {
 
   const handleSaveProfile = async (data: any) => {
     await updateProfile(data);
+  };
+
+  const handleDeleteAllData = async () => {
+    if (!user || deleteConfirmInput.trim().toUpperCase() !== 'DELETE') return;
+    setIsDeletingData(true);
+    setDeleteError(null);
+    try {
+      // 1. Delete uploaded images from Supabase Storage
+      await deleteAllUserScanImages(user.id);
+
+      // 2. Clear user data tables cleanly under RLS
+      await Promise.all([
+        (supabase as any).from('meal_logs').delete().eq('user_id', user.id),
+        (supabase as any).from('scan_items').delete().eq('user_id', user.id),
+        (supabase as any).from('food_scans').delete().eq('user_id', user.id),
+        (supabase as any).from('user_ingredients').delete().eq('user_id', user.id),
+        (supabase as any).from('notifications').delete().eq('user_id', user.id),
+        (supabase as any).from('daily_nutrition_summaries').delete().eq('user_id', user.id),
+      ]);
+
+      // 3. Request auth deletion if server service role key is configured
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      let authDeleted = false;
+
+      if (accessToken) {
+        const res = await fetch('/api/account', {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }).catch(() => null);
+        if (res?.ok) {
+          const json = await res.json().catch(() => ({}));
+          authDeleted = Boolean(json?.authDeleted);
+        }
+      }
+
+      if (!authDeleted) {
+        await (supabase as any)
+          .from('profiles')
+          .update({
+            is_onboarding_completed: false,
+            height_cm: null,
+            weight_kg: null,
+            target_weight_kg: null,
+            allergies: [],
+            intolerances: [],
+            medical_conditions: [],
+            dietary_preferences: [],
+            medications: [],
+          })
+          .eq('id', user.id);
+      }
+
+      await signOut();
+      navigate('/', { replace: true });
+    } catch (err: any) {
+      console.error('Failed to delete account data:', err);
+      setDeleteError(err?.message || 'Failed to delete your data. Please try again.');
+      setIsDeletingData(false);
+    }
   };
 
   return (
@@ -113,9 +181,16 @@ export default function SettingsPage() {
           <div className="space-y-5 flex-1">
             <div>
               <h4 className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                <ShieldAlert size={12} /> Allergies & Intolerances
+                <ShieldAlert size={12} /> Allergies
               </h4>
               <TagList tags={profile.allergies} />
+            </div>
+
+            <div>
+              <h4 className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                <AlertTriangle size={12} /> Intolerances
+              </h4>
+              <TagList tags={profile.intolerances} />
             </div>
 
             <div>
@@ -216,7 +291,11 @@ export default function SettingsPage() {
               Sign Out
             </button>
             <button
-              onClick={() => alert('Account deletion would happen here.')}
+              onClick={() => {
+                setDeleteConfirmInput('');
+                setDeleteError(null);
+                setIsDeleteModalOpen(true);
+              }}
               className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-[4px] bg-[#991b1b] text-white font-mono text-[11px] hover:bg-[#7f1d1d] transition-colors shadow-sm"
             >
               <Trash2 size={14} />
@@ -233,6 +312,53 @@ export default function SettingsPage() {
         profile={profile}
         onSave={handleSaveProfile}
       />
+
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm">
+          <div className="bg-white border border-[#fecaca] rounded-[4px] shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-serif text-2xl text-[#991b1b]">Delete All Data</h3>
+              <button
+                onClick={() => !isDeletingData && setIsDeleteModalOpen(false)}
+                className="p-1.5 rounded-[4px] text-[#8ba797] hover:bg-[#f0f5f2]"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="font-mono text-[11px] text-[#5a7a68] leading-relaxed mb-4">
+              This will permanently remove all your scan photos, food history, meal logs, ingredient dictionary, notifications, and dietary preferences. Type <strong className="text-[#991b1b]">DELETE</strong> to confirm.
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmInput}
+              onChange={(e) => setDeleteConfirmInput(e.target.value)}
+              placeholder="Type DELETE"
+              className="w-full px-3 py-2 mb-4 border border-[#c5d1c9] rounded-[4px] font-mono text-sm text-[#1e4832] focus:outline-none focus:border-[#991b1b]"
+            />
+            {deleteError && (
+              <p className="font-mono text-[11px] text-[#991b1b] mb-3">{deleteError}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={isDeletingData}
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="px-4 py-2 rounded-[4px] border border-[#c5d1c9] font-mono text-xs text-[#6b8274] hover:bg-[#f0f5f2]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingData || deleteConfirmInput.trim().toUpperCase() !== 'DELETE'}
+                onClick={handleDeleteAllData}
+                className="px-4 py-2 rounded-[4px] bg-[#991b1b] text-white font-mono text-xs font-bold hover:bg-[#7f1d1d] disabled:opacity-40"
+              >
+                {isDeletingData ? 'Deleting...' : 'Permanently Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </motion.div>
   );

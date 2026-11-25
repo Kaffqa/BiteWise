@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/contexts/AuthContext';
 import { generatePersonalIngredients } from '@/lib/ai-provider';
+import { toUserHealthProfile } from '@/lib/profile-utils';
 import { OnboardingData } from '@/types/common.types';
 import { Ruler, Utensils, ShieldAlert, Target as TargetIcon } from 'lucide-react';
 
@@ -511,16 +512,7 @@ export default function OnboardingPage() {
 
       // Fire-and-forget: generate personalized ingredients in the background
       if (user) {
-        const userProfile = {
-          allergies: data.allergies || [],
-          intolerances: data.intolerances || [],
-          medicalConditions: data.medical_conditions || [],
-          dietaryPreferences: data.dietary_preferences || [],
-          medications: data.medications || [],
-          targetCalories: null,
-          targetSodiumMg: null,
-          targetSugarG: null,
-        };
+        const userProfile = toUserHealthProfile(data);
         generatePersonalIngredients(userProfile)
           .then(async (aiIngredients) => {
             if (aiIngredients && aiIngredients.length > 0) {

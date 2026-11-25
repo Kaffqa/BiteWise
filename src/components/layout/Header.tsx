@@ -157,9 +157,10 @@ export default function Header() {
                   <div className="h-px bg-[#e0e8e3] my-1 mx-4" />
                   <div 
                     onClick={() => {
+                      const prefill = searchQuery.trim();
                       setShowDropdown(false);
                       setSearchQuery('');
-                      navigate('/app/history', { state: { openAddModal: true }});
+                      navigate('/app/history', { state: { openAddModal: true, prefillDescription: prefill }});
                     }}
                     className="flex items-center justify-between px-4 py-2.5 hover:bg-[#f0f5f2] cursor-pointer transition-colors text-[#1e4832] group"
                   >
@@ -175,9 +176,10 @@ export default function Header() {
                   <span className="font-mono text-[11px] text-[#8ba797]">Try a different keyword</span>
                   <button
                     onClick={() => {
+                      const prefill = searchQuery.trim();
                       setShowDropdown(false);
                       setSearchQuery('');
-                      navigate('/app/history', { state: { openAddModal: true }});
+                      navigate('/app/history', { state: { openAddModal: true, prefillDescription: prefill }});
                     }}
                     className="mt-4 px-4 py-1.5 flex items-center gap-1.5 bg-[#f0f5f2] border border-[#e0e8e3] rounded-full text-[#1e4832] font-mono text-[10px] hover:bg-[#e8efe9] transition-colors"
                   >

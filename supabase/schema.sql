@@ -294,12 +294,18 @@ BEGIN
         NEW.target_sodium_mg := 2300;
         NEW.target_sugar_g := 50;
         
-        -- Special adjustments for medical conditions
-        IF 'hypertension' = ANY(NEW.medical_conditions) THEN
+        -- Special adjustments for medical conditions (case-insensitive substring match)
+        IF EXISTS (
+            SELECT 1 FROM unnest(COALESCE(NEW.medical_conditions, '{}'::text[])) AS mc
+            WHERE lower(mc) LIKE '%hypertension%'
+        ) THEN
             NEW.target_sodium_mg := 1500;
         END IF;
         
-        IF 'diabetes' = ANY(NEW.medical_conditions) THEN
+        IF EXISTS (
+            SELECT 1 FROM unnest(COALESCE(NEW.medical_conditions, '{}'::text[])) AS mc
+            WHERE lower(mc) LIKE '%diabetes%'
+        ) THEN
             NEW.target_sugar_g := 25;
         END IF;
         

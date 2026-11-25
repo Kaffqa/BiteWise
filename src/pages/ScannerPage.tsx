@@ -11,11 +11,18 @@ export default function ScannerPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const { stream, isActive, startCamera, stopCamera, capturePhoto, toggleFacingMode } = useCamera();
+  const { stream, isActive, error: cameraError, startCamera, stopCamera, capturePhoto, toggleFacingMode } = useCamera();
   const { scanState, result, error, processScan, reset, confirmMealLog } = useScanner();
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [dropError, setDropError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   useEffect(() => {
     startCamera();
@@ -57,11 +64,17 @@ export default function ScannerPage() {
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert("Gambar terlalu besar! Maksimal ukuran file adalah 5MB.");
+      if (!file.type.startsWith('image/')) {
+        setDropError('Unsupported file type. Please choose a JPG, PNG, or WebP image.');
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
+      if (file.size > 5 * 1024 * 1024) {
+        setDropError('Image is too large! Maximum file size is 5MB.');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+      setDropError(null);
       setPreviewUrl(URL.createObjectURL(file));
       setSelectedFile(file);
     }
@@ -70,6 +83,7 @@ export default function ScannerPage() {
   const handleReset = () => {
     setPreviewUrl(null);
     setSelectedFile(null);
+    setDropError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
     reset();
   };
@@ -99,37 +113,72 @@ export default function ScannerPage() {
                    e.preventDefault();
                    const file = e.dataTransfer.files[0];
                    if (file) {
-                     if (file.size > 5 * 1024 * 1024) {
-                       alert("Gambar terlalu besar! Maksimal ukuran file adalah 5MB.");
+                     if (!file.type.startsWith('image/')) {
+                       setDropError('Unsupported file type. Please drop a JPG, PNG, or WebP image.');
                        return;
                      }
+                     if (file.size > 5 * 1024 * 1024) {
+                       setDropError('Image is too large! Maximum file size is 5MB.');
+                       return;
+                     }
+                     setDropError(null);
                      setPreviewUrl(URL.createObjectURL(file));
+                     setSelectedFile(file);
                      processScan(file);
                    }
                  }}
             >
               
               {previewUrl && (
-                <img src={previewUrl} alt="Preview" className="absolute inset-0 w-full h-full object-cover rounded-[4px] z-10" />
+                <>
+                  <img src={previewUrl} alt="Preview" className="absolute inset-0 w-full h-full object-cover rounded-[4px] z-10" />
+                  {!isLoading && (
+                    <button
+                      type="button"
+                      onClick={handleReset}
+                      aria-label="Clear selected photo"
+                      className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-black/55 hover:bg-black/75 text-white flex items-center justify-center transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </>
               )}
               
               {/* If camera active, show video feed filling the space */}
               {isActive && !previewUrl ? (
-                <video 
-                  ref={videoRef} 
-                  autoPlay 
-                  playsInline 
-                  muted 
-                  className="absolute inset-0 w-full h-full object-cover rounded-[4px]"
-                />
+                <>
+                  <video 
+                    ref={videoRef} 
+                    autoPlay 
+                    playsInline 
+                    muted 
+                    className="absolute inset-0 w-full h-full object-cover rounded-[4px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={toggleFacingMode}
+                    title="Switch camera"
+                    aria-label="Switch front or back camera"
+                    className="absolute top-3 right-3 z-20 px-3 py-1.5 rounded-[4px] bg-black/55 hover:bg-black/75 text-white font-mono text-[11px] flex items-center gap-1.5 backdrop-blur-xs transition-colors"
+                  >
+                    <RefreshCw size={13} />
+                    <span>Flip</span>
+                  </button>
+                </>
               ) : !previewUrl && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 z-10">
-                  <span className="font-mono text-[11px] font-bold text-[#4a6353] mb-12 uppercase tracking-wide">
-                    Drag and drop an image here, or use camera
+                  <span className="font-mono text-[11px] font-bold text-[#4a6353] mb-3 uppercase tracking-wide">
+                    Drag and drop an image here, or upload below
                   </span>
+                  {cameraError && (
+                    <span className="font-mono text-[11px] text-[#92400e] bg-[#fef3c7]/70 border border-[#fcd34d]/50 px-3 py-1.5 rounded-[4px] mb-4 max-w-xs">
+                      Camera unavailable ({cameraError}). You can upload or drop an image instead.
+                    </span>
+                  )}
 
                   <span className="font-mono text-[9px] font-bold text-[#8ba797] uppercase tracking-wider mt-auto">
-                    Supports JPG, PNG, HEIC (Max 5MB)
+                    Supports JPG, PNG, WebP (Max 5MB)
                   </span>
                 </div>
               )}
@@ -174,10 +223,10 @@ export default function ScannerPage() {
           </div>
           
           {/* Error Message */}
-          {scanState === 'error' && (
+          {(scanState === 'error' || dropError) && (
             <div className="mt-4 p-4 rounded-[4px] bg-[#fecaca]/30 border border-[#fecaca] flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-[#991b1b] shrink-0" />
-              <span className="text-[#991b1b] text-sm font-mono flex-1">{error}</span>
+              <span className="text-[#991b1b] text-sm font-mono flex-1">{dropError || error}</span>
               <button onClick={handleReset} className="text-[#991b1b] underline text-xs font-mono">Retry</button>
             </div>
           )}

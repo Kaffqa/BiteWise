@@ -1,13 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CaretLeft, ShieldCheck, Warning, ShieldWarning, Info, PlusCircle, CheckCircle, X, MagnifyingGlassPlus } from '@phosphor-icons/react';
-import { Loader2, Pill, Activity, Sparkles, ArrowRight, Check, ShieldAlert, TrendingUp, ArrowLeftRight, Lightbulb, TrendingDown } from 'lucide-react';
+import { Loader2, Pill, Activity, Sparkles, ArrowRight, Check, ShieldAlert, TrendingUp, ArrowLeftRight, Lightbulb, TrendingDown, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format, formatDistanceToNow, isToday } from 'date-fns';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { supabase } from '@/lib/supabase';
-import { useScanner } from '@/hooks/useScanner';
+import { useAuth } from '@/contexts/AuthContext';
 import { useNutrition } from '@/contexts/NutritionContext';
+import { deleteScanImage } from '@/lib/storage';
+import { getMealTypeByHour, scaleMealMacros } from '@/lib/profile-utils';
+import type { MealType } from '@/types/database.types';
 import type { SmartSwapAlternative, DrugInteraction, GlycemicAnalysis } from '@/types/ai.types';
 
 export function GlycemicCurveChart({ analysis }: { analysis: GlycemicAnalysis }) {
@@ -108,49 +111,52 @@ export function GlycemicCurveChart({ analysis }: { analysis: GlycemicAnalysis })
 export default function ScanResultPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { confirmMealLog } = useScanner();
-  const { addMealLog, refreshToday } = useNutrition();
+  const { user, profile } = useAuth();
+  const { addMealLog, updateMealLog, removeMealLog, refreshToday } = useNutrition();
 
   const [loading, setLoading] = useState(true);
   const [scanRecord, setScanRecord] = useState<any>(null);
   const [scanItems, setScanItems] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [logStatus, setLogStatus] = useState<'idle' | 'logging' | 'success'>('idle');
+  const [selectedMealType, setSelectedMealType] = useState<MealType>(() => getMealTypeByHour());
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [swappingName, setSwappingName] = useState<string | null>(null);
   const [swapLoggedSuccess, setSwapLoggedSuccess] = useState<string | null>(null);
+  const [isMutating, setIsMutating] = useState(false);
+  const [confirmDeleteScan, setConfirmDeleteScan] = useState(false);
+
+  const fetchScanData = useCallback(async () => {
+    if (!id) return;
+    try {
+      setLoading(true);
+      const { data: scanData, error: scanError } = await supabase
+        .from('food_scans')
+        .select('*, meal_logs(*)')
+        .eq('id', id)
+        .single();
+
+      if (scanError) throw scanError;
+      setScanRecord(scanData);
+
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('scan_items')
+        .select('*')
+        .eq('scan_id', id);
+
+      if (itemsError) throw itemsError;
+      setScanItems(itemsData || []);
+    } catch (err: any) {
+      console.error('Error fetching scan results:', err);
+      setError(err.message || 'Failed to load scan results');
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
-    const fetchScanData = async () => {
-      if (!id) return;
-      try {
-        setLoading(true);
-        const { data: scanData, error: scanError } = await supabase
-          .from('food_scans')
-          .select('*, meal_logs(*)')
-          .eq('id', id)
-          .single();
-
-        if (scanError) throw scanError;
-        setScanRecord(scanData);
-
-        const { data: itemsData, error: itemsError } = await supabase
-          .from('scan_items')
-          .select('*')
-          .eq('scan_id', id);
-
-        if (itemsError) throw itemsError;
-        setScanItems(itemsData || []);
-      } catch (err: any) {
-        console.error('Error fetching scan results:', err);
-        setError(err.message || 'Failed to load scan results');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchScanData();
-  }, [id]);
+  }, [fetchScanData]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -162,7 +168,7 @@ export default function ScanResultPage() {
       const logData = {
         user_id: scanRecord.user_id,
         scan_id: scanRecord.id,
-        meal_type: 'snack',
+        meal_type: selectedMealType,
         food_name: scanRecord.meal_title,
         calories: scanRecord.total_calories,
         protein_g: scanRecord.total_protein_g,
@@ -177,10 +183,8 @@ export default function ScanResultPage() {
       };
 
       await addMealLog(logData as any);
-      await refreshToday();
-      
+      await fetchScanData();
       setLogStatus('success');
-      setTimeout(() => navigate('/app'), 1500);
     } catch (err: any) {
       console.error('Logging failed:', err);
       setLogStatus('idle');
@@ -193,7 +197,7 @@ export default function ScanResultPage() {
       const logData = {
         user_id: scanRecord.user_id,
         scan_id: scanRecord.id,
-        meal_type: 'snack',
+        meal_type: selectedMealType,
         food_name: `${alt.alternativeName} (Smart Swap)`,
         calories: alt.calories,
         protein_g: alt.proteinG || 15,
@@ -201,19 +205,76 @@ export default function ScanResultPage() {
         fat_g: alt.fatG || 10,
         fiber_g: 4,
         sugar_g: 3,
-        sodium_mg: 350,
+        sodium_mg: 300,
         consumed_at: format(new Date(), "yyyy-MM-dd'T'HH:mm:ssxxx"),
         log_date: format(new Date(), 'yyyy-MM-dd'),
         portion_multiplier: 1,
       };
 
       await addMealLog(logData as any);
-      await refreshToday();
+      await fetchScanData();
       setSwapLoggedSuccess(alt.alternativeName);
     } catch (err: any) {
       console.error('Logging swap failed:', err);
     } finally {
       setSwappingName(null);
+    }
+  };
+
+  const handleUpdatePortion = async (mealLog: any, multiplier: number) => {
+    try {
+      setIsMutating(true);
+      const scaled = scaleMealMacros(
+        {
+          calories: scanRecord.total_calories,
+          protein_g: scanRecord.total_protein_g,
+          carbs_g: scanRecord.total_carbs_g,
+          fat_g: scanRecord.total_fat_g,
+          fiber_g: scanRecord.total_fiber_g,
+          sugar_g: scanRecord.total_sugar_g,
+          sodium_mg: scanRecord.total_sodium_mg,
+        },
+        multiplier
+      );
+      await updateMealLog(mealLog.id, { portion_multiplier: multiplier, ...scaled });
+      await fetchScanData();
+    } catch (err) {
+      console.error('Failed to update portion:', err);
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const handleUnlogMeal = async (mealLogId: string) => {
+    try {
+      setIsMutating(true);
+      await removeMealLog(mealLogId);
+      setLogStatus('idle');
+      await fetchScanData();
+    } catch (err) {
+      console.error('Failed to unlog meal:', err);
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const handleDeleteScan = async () => {
+    if (!scanRecord || !user) return;
+    try {
+      setIsMutating(true);
+      const existingLogs = scanRecord.meal_logs || [];
+      for (const l of existingLogs) {
+        await removeMealLog(l.id);
+      }
+      if (scanRecord.image_url) {
+        await deleteScanImage(scanRecord.image_url);
+      }
+      await supabase.from('food_scans').delete().eq('id', scanRecord.id).eq('user_id', user.id);
+      await refreshToday();
+      navigate('/app/history');
+    } catch (err) {
+      console.error('Failed to delete scan:', err);
+      setIsMutating(false);
     }
   };
 
@@ -300,21 +361,53 @@ export default function ScanResultPage() {
   const rawAI = scanRecord.raw_ai_response || {};
   const drugInteractions: DrugInteraction[] = rawAI.drugInteractions || [];
 
-  // Smart Swaps (AI-generated or resilient contextual fallback)
+  // Smart Swaps (AI-generated or profile-filtered resilient fallback)
   let smartAlternatives: SmartSwapAlternative[] = rawAI.smartAlternatives || [];
   if (smartAlternatives.length === 0 && (scanRecord.safety_status !== 'safe' || (scanRecord.total_calories || 0) > 400)) {
     const mealCal = scanRecord.total_calories || 520;
-    smartAlternatives = [
+    const userAllergies = [...(profile?.allergies || []), ...(profile?.intolerances || [])].map((s) => s.toLowerCase());
+    const userDiets = (profile?.dietary_preferences || []).map((s) => s.toLowerCase());
+    const isVeganOrVeg = userDiets.some((d) => d.includes('vegan') || d.includes('vegetarian'));
+    const avoidGluten = userAllergies.some((a) => a.includes('gluten') || a.includes('wheat'));
+    const avoidNuts = userAllergies.some((a) => a.includes('nut') || a.includes('peanut'));
+    const avoidSoy = userAllergies.some((a) => a.includes('soy'));
+
+    const candidates: Array<SmartSwapAlternative & { containsAnimal?: boolean; containsNuts?: boolean; containsSoy?: boolean; containsGluten?: boolean }> = [
+      {
+        originalItem: scanRecord.meal_title || 'Current Meal',
+        alternativeName: 'Oat & Chia Seed Warm Bowl with Fresh Berries',
+        reason: 'Low glycemic response with soluble beta-glucan fiber and zero common nut, soy, or animal allergens.',
+        calories: Math.max(210, Math.round(mealCal * 0.5)),
+        proteinG: 14,
+        carbsG: 32,
+        fatG: 7,
+        safetyStatus: 'safe',
+        tags: ['Low GI', 'Allergen-Friendly', 'High Fiber'],
+        containsGluten: false,
+      },
       {
         originalItem: scanRecord.meal_title || 'Current Meal',
         alternativeName: 'Shirataki Rice with Grilled Chicken & Steamed Greens',
-        reason: 'Saves calories, replaces high-GI white starch with prebiotic konjac glucomannan, eliminating allergen triggers.',
+        reason: 'Saves calories and replaces high-GI white starch with prebiotic konjac glucomannan and lean protein.',
         calories: Math.max(220, Math.round(mealCal * 0.55)),
         proteinG: 28,
         carbsG: 18,
         fatG: 6,
         safetyStatus: 'safe',
-        tags: ['Lower Calorie', 'Low GI', 'High Protein', 'Gluten-Free']
+        tags: ['Lower Calorie', 'Low GI', 'High Protein'],
+        containsAnimal: true,
+      },
+      {
+        originalItem: scanRecord.meal_title || 'Current Meal',
+        alternativeName: 'Steamed Quinoa, Edamame & Avocado Salad Bowl',
+        reason: '100% plant-based complete protein with steady energy release and heart-healthy monounsaturated fats.',
+        calories: Math.max(250, Math.round(mealCal * 0.6)),
+        proteinG: 20,
+        carbsG: 28,
+        fatG: 9,
+        safetyStatus: 'safe',
+        tags: ['Plant-Based', 'Heart-Healthy', 'Low GI'],
+        containsSoy: true,
       },
       {
         originalItem: scanRecord.meal_title || 'Current Meal',
@@ -325,9 +418,18 @@ export default function ScanResultPage() {
         carbsG: 26,
         fatG: 11,
         safetyStatus: 'safe',
-        tags: ['Heart-Healthy', 'High Fiber', 'Indonesian Local']
-      }
+        tags: ['High Fiber', 'Indonesian Local'],
+        containsNuts: true,
+        containsSoy: true,
+      },
     ];
+
+    smartAlternatives = candidates
+      .filter((c) => !(isVeganOrVeg && c.containsAnimal))
+      .filter((c) => !(avoidNuts && c.containsNuts))
+      .filter((c) => !(avoidSoy && c.containsSoy))
+      .filter((c) => !(avoidGluten && c.containsGluten))
+      .slice(0, 2);
   }
 
   // Glycemic Analysis (AI-generated or resilient continuous curve simulator)
@@ -544,7 +646,9 @@ export default function ScanResultPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {smartAlternatives.map((alt, idx) => {
-                    const calSavings = (scanRecord.total_calories || 0) - alt.calories;
+                    const calSavings = Math.round((scanRecord.total_calories || 0) - alt.calories);
+                    const isSwappingThis = swappingName === alt.alternativeName;
+                    const isSwappedThis = swapLoggedSuccess === alt.alternativeName;
 
                     return (
                       <div 
@@ -589,17 +693,36 @@ export default function ScanResultPage() {
                           <div className="grid grid-cols-3 gap-2 py-2.5 border-t border-[#e8efe9] text-center font-mono text-[10px]">
                             <div>
                               <span className="block text-[#8ba797] text-[8px] uppercase">Protein</span>
-                              <span className="font-bold text-[#1e4832]">{alt.proteinG}g</span>
+                              <span className="font-bold text-[#1e4832]">{Math.round(alt.proteinG || 0)}g</span>
                             </div>
                             <div className="border-l border-r border-[#e8efe9]">
                               <span className="block text-[#8ba797] text-[8px] uppercase">Carbs</span>
-                              <span className="font-bold text-[#1e4832]">{alt.carbsG}g</span>
+                              <span className="font-bold text-[#1e4832]">{Math.round(alt.carbsG || 0)}g</span>
                             </div>
                             <div>
                               <span className="block text-[#8ba797] text-[8px] uppercase">Fat</span>
-                              <span className="font-bold text-[#1e4832]">{alt.fatG}g</span>
+                              <span className="font-bold text-[#1e4832]">{Math.round(alt.fatG || 0)}g</span>
                             </div>
                           </div>
+
+                          <button
+                            type="button"
+                            disabled={isSwappingThis || isSwappedThis}
+                            onClick={() => handleLogSwap(alt)}
+                            className={`mt-3 w-full py-2 rounded-[4px] font-mono text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                              isSwappedThis
+                                ? 'bg-[#bbf7d0] text-[#166534] border border-[#86efac]'
+                                : 'bg-[#f0f5f2] hover:bg-[#e4ede7] text-[#1e4832] border border-[#c5d1c9]'
+                            }`}
+                          >
+                            {isSwappingThis ? (
+                              <><Loader2 size={12} className="animate-spin" /> Logging Swap...</>
+                            ) : isSwappedThis ? (
+                              <><Check size={12} /> Logged as {selectedMealType}</>
+                            ) : (
+                              <>Log This Swap Instead</>
+                            )}
+                          </button>
                         </div>
                       </div>
                     );
@@ -687,7 +810,7 @@ export default function ScanResultPage() {
 
           {/* Right Column */}
           <div className="lg:col-span-4 flex flex-col gap-5">
-            {/* Action Area (Moved up for Bento emphasis) */}
+            {/* Action Area */}
             <div className="bg-white rounded-[4px] border border-[#e8efe9] shadow-sm p-6 lg:p-8">
               {shouldShowLoggedState ? (
                 <div className="flex flex-col items-center gap-4">
@@ -696,18 +819,71 @@ export default function ScanResultPage() {
                       ? "This meal was deemed safe and has been automatically logged." 
                       : "This meal has already been logged to your journal."}
                   </p>
-                  <div className="w-full py-4 rounded-[4px] bg-[#f0f5f2] border border-[#c5d1c9] text-[#166534] font-mono font-bold text-[13px] flex justify-center items-center gap-2">
+                  <div className="w-full py-3.5 rounded-[4px] bg-[#f0f5f2] border border-[#c5d1c9] text-[#166534] font-mono font-bold text-[13px] flex justify-center items-center gap-2">
                     <CheckCircle className="w-5 h-5" weight="fill" />
                     {isSafe && !isAlreadyLogged && logStatus !== 'success' ? 'Automatically Logged' : 'Already Logged'}
                   </div>
+
+                  {scanRecord.meal_logs?.[0] && (
+                    <div className="w-full pt-3 border-t border-[#e8efe9] flex flex-col gap-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-[11px] text-[#6b8274] uppercase">Portion Size</span>
+                        <div className="flex gap-1.5">
+                          {[0.5, 1, 1.5, 2].map((mult) => {
+                            const active = (Number(scanRecord.meal_logs[0].portion_multiplier) || 1) === mult;
+                            return (
+                              <button
+                                key={mult}
+                                type="button"
+                                disabled={isMutating}
+                                onClick={() => handleUpdatePortion(scanRecord.meal_logs[0], mult)}
+                                className={`px-2.5 py-1 rounded-[4px] font-mono text-[11px] border transition-colors ${
+                                  active
+                                    ? 'bg-[#1a3825] border-[#1a3825] text-white font-bold'
+                                    : 'bg-white border-[#c5d1c9] text-[#1e4832] hover:bg-[#f0f5f2]'
+                                }`}
+                              >
+                                {mult}x
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isMutating}
+                        onClick={() => handleUnlogMeal(scanRecord.meal_logs[0].id)}
+                        className="w-full py-2 rounded-[4px] border border-[#e0e8e3] text-[#6b8274] hover:text-[#991b1b] hover:border-[#fecaca] hover:bg-[#fef2f2] font-mono text-[11px] transition-colors"
+                      >
+                        Remove from Daily Log
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-4">
                   <p className="font-mono text-[12px] text-[#6b8274] text-center max-w-sm">
                     {!isToday(new Date(scanRecord.created_at)) 
                       ? "This meal was scanned on a different day and cannot be logged to today's journal." 
-                      : "This meal has flagged items. You can still log it manually if you choose to."}
+                      : "This meal has flagged items. Choose a meal time below if you still want to log it."}
                   </p>
+                  {isToday(new Date(scanRecord.created_at)) && (
+                    <div className="w-full">
+                      <label className="block font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mb-1.5">
+                        Meal Category
+                      </label>
+                      <select
+                        value={selectedMealType}
+                        onChange={(e) => setSelectedMealType(e.target.value as MealType)}
+                        className="w-full px-3 py-2 rounded-[4px] bg-[#f7f9f8] border border-[#c5d1c9] text-[#1e4832] font-mono text-[12px] focus:outline-none focus:border-[#1e4832]"
+                      >
+                        <option value="breakfast">Breakfast</option>
+                        <option value="lunch">Lunch</option>
+                        <option value="dinner">Dinner</option>
+                        <option value="snack">Snack</option>
+                      </select>
+                    </div>
+                  )}
                   <button 
                     onClick={handleManualLog}
                     disabled={logStatus !== 'idle' || !isToday(new Date(scanRecord.created_at))}
@@ -721,6 +897,40 @@ export default function ScanResultPage() {
                   </button>
                 </div>
               )}
+
+              {/* Delete Scan Action */}
+              <div className="mt-4 pt-4 border-t border-[#e8efe9]">
+                {confirmDeleteScan ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-[11px] text-[#991b1b]">Delete this scan permanently?</span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={isMutating}
+                        onClick={handleDeleteScan}
+                        className="px-3 py-1.5 rounded-[4px] bg-[#991b1b] text-white font-mono text-[11px] font-bold hover:bg-[#7f1d1d]"
+                      >
+                        {isMutating ? 'Deleting...' : 'Confirm'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteScan(false)}
+                        className="px-3 py-1.5 rounded-[4px] border border-[#c5d1c9] text-[#6b8274] font-mono text-[11px]"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteScan(true)}
+                    className="w-full py-2 rounded-[4px] text-[#a4b5aa] hover:text-[#991b1b] hover:bg-[#fef2f2] font-mono text-[11px] flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Trash2 size={13} /> Delete Scan Record
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Health Warnings */}

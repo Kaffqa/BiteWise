@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { generatePersonalIngredients, enrichIngredients } from '@/lib/ai-provider';
+import { toUserHealthProfile } from '@/lib/profile-utils';
 
 export interface UserIngredient {
   id: string;
@@ -87,15 +88,7 @@ export function useIngredients() {
     if (!user || !profile) return;
     try {
       setIsGenerating(true);
-      const userProfile = {
-        allergies: (profile as any).allergies || [],
-        intolerances: (profile as any).intolerances || [],
-        medicalConditions: (profile as any).medical_conditions || [],
-        dietaryPreferences: (profile as any).dietary_preferences || [],
-        targetCalories: (profile as any).target_calories || null,
-        targetSodiumMg: (profile as any).target_sodium_mg || null,
-        targetSugarG: (profile as any).target_sugar_g || null,
-      };
+      const userProfile = toUserHealthProfile(profile);
 
       const aiIngredients = await generatePersonalIngredients(userProfile);
 
@@ -183,15 +176,7 @@ export function useIngredients() {
       // 3. Batch enrich & insert new ingredients
       if (newItemsToEnrich.length > 0) {
         const namesToEnrich = newItemsToEnrich.map(i => i.ingredientName);
-        const userProfile = {
-          allergies: profile.allergies || [],
-          intolerances: profile.intolerances || [],
-          medicalConditions: profile.medical_conditions || [],
-          dietaryPreferences: profile.dietary_preferences || [],
-          targetCalories: profile.target_calories || 2000,
-          targetSodiumMg: profile.target_sodium_mg || 2300,
-          targetSugarG: profile.target_sugar_g || 50,
-        };
+        const userProfile = toUserHealthProfile(profile);
         
         let enrichedData: any[] = [];
         try {

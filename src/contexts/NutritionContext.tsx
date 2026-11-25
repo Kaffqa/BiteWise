@@ -9,6 +9,7 @@ interface NutritionContextType {
   todayMealLogs: MealLog[];
   loading: boolean;
   addMealLog: (log: Omit<MealLog, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateMealLog: (logId: string, updates: Partial<MealLog>) => Promise<void>;
   removeMealLog: (logId: string) => Promise<void>;
   refreshToday: () => Promise<void>;
 }
@@ -16,7 +17,7 @@ interface NutritionContextType {
 const NutritionContext = createContext<NutritionContextType | undefined>(undefined);
 
 /**
- * Context provider for daily nutrition tracking.
+ * Context provider for daily nutrition tracking using local calendar dates.
  */
 export function NutritionProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -45,16 +46,11 @@ export function NutritionProvider({ children }: { children: ReactNode }) {
 
       setTodaySummary(summaryData);
 
-      // Assuming consumed_at has timestamp, we get logs from today
-      const todayStart = `${today}T00:00:00.000Z`;
-      const todayEnd = `${today}T23:59:59.999Z`;
-
       const { data: logsData } = await supabase
         .from('meal_logs')
         .select('*')
         .eq('user_id', user.id)
-        .gte('consumed_at', todayStart)
-        .lte('consumed_at', todayEnd)
+        .eq('log_date', today)
         .order('consumed_at', { ascending: true });
 
       if (logsData) {
@@ -90,15 +86,30 @@ export function NutritionProvider({ children }: { children: ReactNode }) {
 
   const addMealLog = async (log: Omit<MealLog, 'id' | 'created_at' | 'updated_at'>) => {
     if (!user) return;
-    // @ts-ignore
-    const { error } = await supabase.from('meal_logs').insert([log as any]);
+    const { error } = await (supabase.from('meal_logs') as any).insert([log]);
     if (error) throw error;
+    await refreshToday();
+  };
+
+  const updateMealLog = async (logId: string, updates: Partial<MealLog>) => {
+    if (!user) return;
+    const { error } = await (supabase.from('meal_logs') as any)
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', logId)
+      .eq('user_id', user.id);
+    if (error) throw error;
+    await refreshToday();
   };
 
   const removeMealLog = async (logId: string) => {
     if (!user) return;
-    const { error } = await supabase.from('meal_logs').delete().eq('id', logId);
+    const { error } = await supabase
+      .from('meal_logs')
+      .delete()
+      .eq('id', logId)
+      .eq('user_id', user.id);
     if (error) throw error;
+    await refreshToday();
   };
 
   return (
@@ -108,6 +119,7 @@ export function NutritionProvider({ children }: { children: ReactNode }) {
         todayMealLogs,
         loading,
         addMealLog,
+        updateMealLog,
         removeMealLog,
         refreshToday,
       }}

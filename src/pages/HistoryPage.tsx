@@ -1,15 +1,17 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { format, startOfDay, endOfDay, isToday as isTodayFn, isSameDay, subDays, parseISO } from 'date-fns';
+import { format, startOfDay, endOfDay, isToday as isTodayFn, subDays } from 'date-fns';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Scan as PhosphorScan, CalendarDots, CheckCircle, Warning, WarningCircle, CaretDown, Plus, X, MagicWand, ShieldCheck, ShieldWarning, Lightning, Fire, FireSimple } from '@phosphor-icons/react';
-import { Loader2 } from 'lucide-react';
+import { Scan as PhosphorScan, CheckCircle, Warning, Plus, X, MagicWand, ShieldCheck, ShieldWarning, Lightning, FireSimple } from '@phosphor-icons/react';
+import { Loader2, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useScanHistory } from '@/hooks/useScanHistory';
 import { useNutrition } from '@/contexts/NutritionContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { analyzeText } from '@/lib/ai-provider';
+import { deleteScanImage } from '@/lib/storage';
+import { calculateStreakFromScans, getMealTypeByHour, scaleMealMacros, toUserHealthProfile } from '@/lib/profile-utils';
 import { CustomDatePicker } from '@/components/ui/CustomDatePicker';
 import { CustomTimePicker } from '@/components/ui/CustomTimePicker';
 
@@ -73,134 +75,168 @@ const guessEmoji = (title: string) => {
 
 export function HistoryPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, profile } = useAuth();
-  const { refreshToday } = useNutrition();
+  const { refreshToday, updateMealLog, removeMealLog } = useNutrition();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [dailyCals, setDailyCals] = useState<number>(0);
-  
+
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [mealTypeForAdd, setMealTypeForAdd] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('breakfast');
   const [description, setDescription] = useState('');
   const [consumedTime, setConsumedTime] = useState(format(new Date(), 'HH:mm'));
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [busyScanId, setBusyScanId] = useState<string | null>(null);
+
   const [streakData, setStreakData] = useState<any[]>([]);
   const [streakCount, setStreakCount] = useState<number>(0);
   const [scanDays, setScanDays] = useState<Set<number>>(new Set());
-  
-  const { scans, loading, setFilter } = useScanHistory(100, {
+
+  const { scans, loading, setFilter, refresh: refreshScans } = useScanHistory(100, {
     startDate: startOfDay(new Date()).toISOString(),
-    endDate: endOfDay(new Date()).toISOString()
+    endDate: endOfDay(new Date()).toISOString(),
   });
 
+  // Open manual log modal automatically if navigated from Header search shortcut
   useEffect(() => {
-    async function fetchStreak() {
-      if (!user) return;
-      
-      const { data: history } = await supabase
-        .from('food_scans')
-        .select('created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      let currentStreak = 0;
-      let days = new Set<number>();
-      
-      if (history && history.length > 0) {
-        days = new Set(history.map((s: any) => startOfDay(new Date(s.created_at)).getTime()));
-        const today = startOfDay(new Date()).getTime();
-        const yesterday = today - 86400000;
-
-        if (days.has(today) || days.has(yesterday)) {
-          let checkTime = days.has(today) ? today : yesterday;
-          while (days.has(checkTime)) {
-            currentStreak++;
-            checkTime -= 86400000;
-          }
-        }
-      }
-      setStreakCount(currentStreak);
-      setScanDays(days);
+    const state = location.state as { openAddModal?: boolean; prefillDescription?: string } | null;
+    if (state?.openAddModal) {
+      setMealTypeForAdd(getMealTypeByHour());
+      setConsumedTime(format(new Date(), 'HH:mm'));
+      setDescription(state.prefillDescription || '');
+      setAnalyzeError(null);
+      setIsModalOpen(true);
+      navigate(location.pathname, { replace: true, state: null });
     }
-    fetchStreak();
+  }, [location.state, location.pathname, navigate]);
+
+  const fetchStreak = useCallback(async () => {
+    if (!user) return;
+    const sinceIso = subDays(new Date(), 180).toISOString();
+    const { data: history } = await supabase
+      .from('food_scans')
+      .select('created_at')
+      .eq('user_id', user.id)
+      .gte('created_at', sinceIso)
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    const { streakCount: count, scanDays: days } = calculateStreakFromScans(
+      (history || []) as Array<{ created_at: string }>
+    );
+    setStreakCount(count);
+    setScanDays(days);
   }, [user]);
+
+  useEffect(() => {
+    fetchStreak();
+  }, [fetchStreak]);
 
   // Generate the current week for the UI based on selectedDate
   useEffect(() => {
     const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     const streakArr = [];
     const today = startOfDay(new Date()).getTime();
-    
+
     // Find the Monday of the selected week
     const weekStart = startOfDay(selectedDate);
     const day = weekStart.getDay();
     const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
     weekStart.setDate(diff);
-    
+
     for (let i = 0; i < 7; i++) {
       const d = new Date(weekStart);
       d.setDate(weekStart.getDate() + i);
       const dTime = d.getTime();
-      
+
       streakArr.push({
         day: dayNames[d.getDay()],
         date: d.getDate().toString(),
         active: scanDays.has(dTime),
         today: dTime === today,
-        fullDate: d
+        fullDate: d,
       });
     }
     setStreakData(streakArr);
   }, [selectedDate, scanDays]);
 
-  useEffect(() => {
-    setFilter({ 
-      startDate: startOfDay(selectedDate).toISOString(), 
-      endDate: endOfDay(selectedDate).toISOString() 
-    });
+  const fetchDailySummary = useCallback(async () => {
+    if (!user) return;
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    const { data } = await supabase
+      .from('daily_nutrition_summaries')
+      .select('total_calories')
+      .eq('user_id', user.id)
+      .eq('summary_date', dateStr)
+      .maybeSingle();
 
-    async function fetchDailySummary() {
-      if (!user) return;
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      const { data } = await supabase
-        .from('daily_nutrition_summaries')
-        .select('total_calories')
-        .eq('user_id', user.id)
-        .eq('summary_date', dateStr)
-        .maybeSingle();
-        
-      setDailyCals((data as any)?.total_calories || 0);
-    }
+    setDailyCals((data as any)?.total_calories || 0);
+  }, [selectedDate, user]);
+
+  useEffect(() => {
+    setFilter({
+      startDate: startOfDay(selectedDate).toISOString(),
+      endDate: endOfDay(selectedDate).toISOString(),
+    });
     fetchDailySummary();
-  }, [selectedDate, setFilter, user]);
+  }, [selectedDate, setFilter, fetchDailySummary]);
 
   const handleAnalyzeAndAdd = async () => {
     if (!description.trim() || !user || !profile) return;
     try {
       setIsAnalyzing(true);
-      const result = await analyzeText(description, profile as any);
-      
+      setAnalyzeError(null);
+
+      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+      const { data: dayLogs } = await (supabase as any)
+        .from('meal_logs')
+        .select('calories, sodium_mg, sugar_g')
+        .eq('user_id', user.id)
+        .eq('log_date', selectedDateStr);
+
+      const consumedToday = {
+        calories: dayLogs?.reduce((sum: number, l: any) => sum + (Number(l.calories) || 0), 0) || 0,
+        sodiumMg: dayLogs?.reduce((sum: number, l: any) => sum + (Number(l.sodium_mg) || 0), 0) || 0,
+        sugarG: dayLogs?.reduce((sum: number, l: any) => sum + (Number(l.sugar_g) || 0), 0) || 0,
+      };
+
+      const userHealthProfile = toUserHealthProfile(profile);
+      const result = await analyzeText(description, userHealthProfile, consumedToday);
+
       const [hours, minutes] = consumedTime.split(':');
       const consumedDate = new Date(selectedDate);
       consumedDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
-      const consumedAtIso = consumedDate.toISOString();
+      const consumedAtIso = format(consumedDate, "yyyy-MM-dd'T'HH:mm:ssxxx");
 
-      const { data: scanData, error: scanError } = await supabase.from('food_scans').insert({
-        user_id: user.id,
-        scan_type: 'ingredients_list',
-        meal_title: result.mealTitle,
-        safety_status: result.safetyStatus,
-        health_warnings: result.healthWarnings,
-        total_calories: result.totalNutrition.calories,
-        total_protein_g: result.totalNutrition.proteinG,
-        total_carbs_g: result.totalNutrition.carbsG,
-        total_fat_g: result.totalNutrition.fatG,
-        total_fiber_g: result.totalNutrition.fiberG,
-        total_sugar_g: result.totalNutrition.sugarG,
-        total_sodium_mg: result.totalNutrition.sodiumMg,
-        created_at: consumedAtIso,
-      } as any).select().single();
+      const { data: scanData, error: scanError } = await supabase
+        .from('food_scans')
+        .insert({
+          user_id: user.id,
+          scan_type: 'ingredients_list',
+          meal_title: result.mealTitle,
+          safety_status: result.safetyStatus,
+          health_warnings: result.healthWarnings || [],
+          total_calories: result.totalNutrition.calories,
+          total_protein_g: result.totalNutrition.proteinG,
+          total_carbs_g: result.totalNutrition.carbsG,
+          total_fat_g: result.totalNutrition.fatG,
+          total_fiber_g: result.totalNutrition.fiberG,
+          total_sugar_g: result.totalNutrition.sugarG,
+          total_sodium_mg: result.totalNutrition.sodiumMg,
+          created_at: consumedAtIso,
+          raw_ai_response: {
+            ...(result.dailyImpact || {}),
+            dailyImpact: result.dailyImpact,
+            smartAlternatives: result.smartAlternatives || [],
+            drugInteractions: result.drugInteractions || [],
+            glycemicAnalysis: result.glycemicAnalysis || null,
+          },
+        } as any)
+        .select()
+        .single();
 
       if (scanError) throw scanError;
 
@@ -222,12 +258,9 @@ export function HistoryPage() {
           detected_allergens: item.detectedAllergens,
           created_at: consumedAtIso,
         }));
-        
+
         const { error: itemsError } = await supabase.from('scan_items').insert(itemsToInsert as any);
-        if (itemsError) {
-          console.error('Error inserting items:', itemsError);
-          throw itemsError;
-        }
+        if (itemsError) throw itemsError;
       }
 
       if (result.safetyStatus === 'safe') {
@@ -243,25 +276,72 @@ export function HistoryPage() {
           fiber_g: result.totalNutrition.fiberG,
           sugar_g: result.totalNutrition.sugarG,
           sodium_mg: result.totalNutrition.sodiumMg,
-          log_date: format(selectedDate, 'yyyy-MM-dd'),
+          log_date: selectedDateStr,
           portion_multiplier: 1,
-          consumed_at: consumedAtIso
+          consumed_at: consumedAtIso,
         } as any);
 
-        await refreshToday();
+        await Promise.all([refreshToday(), refreshScans(), fetchStreak(), fetchDailySummary()]);
         setIsModalOpen(false);
         setDescription('');
-        window.location.reload();
       } else {
+        await Promise.all([refreshScans(), fetchStreak()]);
         setIsModalOpen(false);
         setDescription('');
         navigate(`/app/scan/${(scanData as any).id}`);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('Failed to analyze and add food. Please try again.');
+      setAnalyzeError(e?.message || 'Failed to analyze and add food. Please try again.');
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handlePortionChange = async (scan: any, mealLog: any, newMultiplier: number) => {
+    try {
+      setBusyScanId(scan.id);
+      const scaled = scaleMealMacros(
+        {
+          calories: scan.total_calories,
+          protein_g: scan.total_protein_g,
+          carbs_g: scan.total_carbs_g,
+          fat_g: scan.total_fat_g,
+          fiber_g: scan.total_fiber_g,
+          sugar_g: scan.total_sugar_g,
+          sodium_mg: scan.total_sodium_mg,
+        },
+        newMultiplier
+      );
+
+      await updateMealLog(mealLog.id, {
+        portion_multiplier: newMultiplier,
+        ...scaled,
+      });
+      await Promise.all([refreshScans(), fetchDailySummary()]);
+    } catch (err) {
+      console.error('Failed to update portion:', err);
+    } finally {
+      setBusyScanId(null);
+    }
+  };
+
+  const handleDeleteEntry = async (scan: any, mealLog?: any) => {
+    try {
+      setBusyScanId(scan.id);
+      if (mealLog?.id) {
+        await removeMealLog(mealLog.id);
+      }
+      if (scan.image_url) {
+        await deleteScanImage(scan.image_url);
+      }
+      await supabase.from('food_scans').delete().eq('id', scan.id).eq('user_id', user!.id);
+      setConfirmDeleteId(null);
+      await Promise.all([refreshScans(), fetchStreak(), fetchDailySummary()]);
+    } catch (err) {
+      console.error('Failed to delete entry:', err);
+    } finally {
+      setBusyScanId(null);
     }
   };
 
@@ -304,14 +384,15 @@ export function HistoryPage() {
     setMealTypeForAdd(mealType);
     setConsumedTime(format(new Date(), 'HH:mm'));
     setDescription('');
+    setAnalyzeError(null);
     setIsModalOpen(true);
   };
 
   // Meal section card component
   const renderMealSection = (title: string, emoji: string, items: any[], mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack') => {
     const totalCals = items.reduce((sum, item) => {
-      const isLogged = item.meal_logs && item.meal_logs.length > 0;
-      return sum + (isLogged ? (item.total_calories || 0) : 0);
+      const mealLog = item.meal_logs?.[0];
+      return sum + (mealLog ? (Number(mealLog.calories) || Number(item.total_calories) || 0) : 0);
     }, 0);
     
     return (
@@ -369,18 +450,24 @@ export function HistoryPage() {
           ) : (
             <div className="flex flex-col divide-y divide-[#f0f5f2]">
               {items.map((scan) => {
-                const isLogged = scan.meal_logs && scan.meal_logs.length > 0;
-                // Use a muted style for items that aren't logged yet
-                const opacityClass = isLogged ? 'opacity-100' : 'opacity-60';
-                
+                const mealLog = scan.meal_logs?.[0];
+                const isLogged = Boolean(mealLog);
+                const infoOpacityClass = isLogged ? 'opacity-100' : 'opacity-80';
+                const displayCals = isLogged ? (mealLog.calories ?? scan.total_calories) : scan.total_calories;
+                const displayCarbs = isLogged ? (mealLog.carbs_g ?? scan.total_carbs_g) : scan.total_carbs_g;
+                const displayProtein = isLogged ? (mealLog.protein_g ?? scan.total_protein_g) : scan.total_protein_g;
+                const displayFat = isLogged ? (mealLog.fat_g ?? scan.total_fat_g) : scan.total_fat_g;
+                const currentPortion = Number(mealLog?.portion_multiplier) || 1;
+                const isBusy = busyScanId === scan.id;
+
                 return (
-                <div 
-                  key={scan.id} 
+                <div
+                  key={scan.id}
                   onClick={() => navigate(`/app/scan/${scan.id}`)}
-                  className={`flex items-center gap-4 py-4 hover:bg-[#fafcfb] -mx-2 px-2 rounded-[4px] transition-colors cursor-pointer group ${opacityClass}`}
+                  className="flex items-center gap-3 md:gap-4 py-4 hover:bg-[#fafcfb] -mx-2 px-2 rounded-[4px] transition-colors cursor-pointer group"
                 >
                   {/* Food Thumbnail */}
-                  <div className="w-8 h-8 md:w-11 md:h-11 rounded-[4px] flex items-center justify-center shrink-0 bg-[#f7f9f8] overflow-hidden border border-[#e8efe9]/50">
+                  <div className={`w-8 h-8 md:w-11 md:h-11 rounded-[4px] flex items-center justify-center shrink-0 bg-[#f7f9f8] overflow-hidden border border-[#e8efe9]/50 ${infoOpacityClass}`}>
                     {scan.image_url ? (
                       <img src={scan.image_url} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -389,55 +476,107 @@ export function HistoryPage() {
                   </div>
 
                   {/* Food Info */}
-                  <div className="flex-1 min-w-0">
+                  <div className={`flex-1 min-w-0 ${infoOpacityClass}`}>
                     <h3 className="font-serif text-[14px] md:text-[16px] text-[#1e4832] truncate group-hover:text-[#2d6b45] transition-colors mb-1">
                       {scan.meal_title || 'Unknown Meal'}
                     </h3>
                     <div className="flex flex-col md:flex-row md:items-center font-mono text-[9px] md:text-[10px] text-[#a4b5aa] tracking-wide">
                       <div className="truncate mb-0.5 md:mb-0">
-                        {format(new Date(scan.created_at), 'hh:mm a')} 
-                        <span className="mx-1.5 md:mx-2 text-[#d1dfd6]">|</span> 
-                        {Math.round(scan.total_calories || 0)} kcal 
+                        {format(new Date(scan.created_at), 'hh:mm a')}
                         <span className="mx-1.5 md:mx-2 text-[#d1dfd6]">|</span>
-                        {Math.round(scan.total_carbs_g || 0)}g Carbs
+                        {Math.round(displayCals || 0)} kcal
+                        <span className="mx-1.5 md:mx-2 text-[#d1dfd6]">|</span>
+                        {Math.round(displayCarbs || 0)}g Carbs
                         <span className="hidden md:inline mx-1.5 md:mx-2 text-[#d1dfd6]">|</span>
                       </div>
                       <div className="truncate">
-                        {Math.round(scan.total_protein_g || 0)}g Protein
+                        {Math.round(displayProtein || 0)}g Protein
                         <span className="mx-1.5 md:mx-2 text-[#d1dfd6]">|</span>
-                        {Math.round(scan.total_fat_g || 0)}g Fat
+                        {Math.round(displayFat || 0)}g Fat
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {/* Portion selector for logged items */}
+                    {isLogged && (
+                      <select
+                        aria-label="Portion multiplier"
+                        value={currentPortion}
+                        disabled={isBusy}
+                        onChange={(e) => handlePortionChange(scan, mealLog, Number(e.target.value))}
+                        className="h-7 px-1.5 rounded-[4px] bg-[#f7f9f8] border border-[#d1dfd6] text-[#1e4832] font-mono text-[10px] font-semibold focus:outline-none focus:border-[#1e4832] cursor-pointer disabled:opacity-50"
+                      >
+                        {[0.5, 1, 1.5, 2].map((mult) => (
+                          <option key={mult} value={mult}>
+                            {mult}x
+                          </option>
+                        ))}
+                      </select>
+                    )}
+
                     {/* Logged Status Badge */}
-                    <div 
-                      className={`h-7 px-2 min-w-[28px] sm:w-[100px] rounded-[4px] flex items-center justify-center gap-1.5 shadow-sm font-mono text-[10px] font-bold ${
-                        isLogged 
-                          ? 'bg-[#e8efe9] text-[#1e4832]' 
-                          : 'bg-white border border-[#e8efe9] text-[#a4b5aa] transition-colors'
+                    <div
+                      onClick={() => navigate(`/app/scan/${scan.id}`)}
+                      className={`h-7 px-2.5 min-w-[28px] sm:w-[108px] whitespace-nowrap rounded-[4px] flex items-center justify-center gap-1.5 font-mono text-[10px] font-bold transition-colors ${
+                        isLogged
+                          ? 'bg-[#e8efe9] text-[#1e4832] shadow-sm'
+                          : 'bg-[#fafcfb] border border-dashed border-[#c5d1c9] text-[#6b8274] hover:border-[#1e4832] hover:text-[#1e4832]'
                       }`}
-                      title={isLogged ? "Logged" : "Not Logged"}
+                      title={isLogged ? 'Logged to daily journal' : 'Not logged yet — click to review & log'}
                     >
                       {isLogged ? (
                         <>
-                          <CheckCircle size={14} weight="fill" className="shrink-0" />
-                          <span className="hidden sm:block">Logged</span>
+                          <CheckCircle size={13} weight="fill" className="shrink-0" />
+                          <span className="hidden sm:inline">Logged</span>
                         </>
                       ) : (
                         <>
-                          <Plus size={14} weight="bold" className="shrink-0" />
-                          <span className="hidden sm:block">Not Logged</span>
+                          <Plus size={13} weight="bold" className="shrink-0" />
+                          <span className="hidden sm:inline">Not Logged</span>
                         </>
                       )}
                     </div>
 
                     {/* Safety Badge */}
-                    <div className={`h-7 px-2 min-w-[32px] sm:w-[85px] rounded-[4px] flex items-center justify-center gap-1.5 shadow-sm font-mono text-[10px] font-bold ${getSafetyBadgeStyle(scan.safety_status)}`}>
+                    <div
+                      onClick={() => navigate(`/app/scan/${scan.id}`)}
+                      className={`h-7 px-2.5 min-w-[32px] sm:w-[88px] whitespace-nowrap rounded-[4px] flex items-center justify-center gap-1.5 shadow-sm font-mono text-[10px] font-bold ${getSafetyBadgeStyle(scan.safety_status)}`}
+                    >
                       {getSafetyIcon(scan.safety_status)}
-                      <span className="hidden sm:block">{getSafetyLabel(scan.safety_status)}</span>
+                      <span className="hidden sm:inline">{getSafetyLabel(scan.safety_status)}</span>
                     </div>
+
+                    {/* Delete entry with inline confirmation */}
+                    {confirmDeleteId === scan.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => handleDeleteEntry(scan, mealLog)}
+                          className="h-7 px-2 rounded-[4px] bg-[#991b1b] text-white font-mono text-[10px] font-bold hover:bg-[#7f1d1d] disabled:opacity-50"
+                        >
+                          {isBusy ? '...' : 'Del'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="h-7 px-1.5 rounded-[4px] border border-[#d1dfd6] text-[#6b8274] font-mono text-[10px] hover:bg-[#f0f5f2]"
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(scan.id)}
+                        aria-label={`Delete ${scan.meal_title}`}
+                        title="Delete entry"
+                        className="h-7 w-7 rounded-[4px] border border-transparent hover:border-[#fecaca] hover:bg-[#fef2f2] text-[#a4b5aa] hover:text-[#991b1b] flex items-center justify-center transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
                   </div>
                 </div>
               )})}
@@ -651,9 +790,15 @@ export function HistoryPage() {
               <div className="bg-[#fef3c7]/40 border border-[#fcd34d]/40 p-4 rounded-[4px] flex gap-3 items-start">
                 <MagicWand className="w-4 h-4 text-[#92400e] mt-0.5 shrink-0" weight="fill" />
                 <p className="text-[12px] font-mono leading-relaxed text-[#92400e]">
-                  Our AI will analyze your description to estimate calories, macros, and check for allergens based on your health profile.
+                  Our AI will analyze your description to estimate calories, macros, and check for allergens, medications, and glycemic impact based on your health profile.
                 </p>
               </div>
+
+              {analyzeError && (
+                <div className="p-3 rounded-[4px] bg-[#fecaca]/40 border border-[#f87171]/40 text-[#991b1b] font-mono text-[11px]">
+                  {analyzeError}
+                </div>
+              )}
 
               <button
                 onClick={handleAnalyzeAndAdd}

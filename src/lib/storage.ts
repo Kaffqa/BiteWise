@@ -7,13 +7,17 @@ const MAX_IMAGE_SIZE_PX = 1600;
 const MAX_FILE_SIZE_MB = 1;
 /** JPEG quality after compression */
 const INITIAL_QUALITY = 0.8;
+const SCAN_BUCKET = 'food-scans';
 
 /**
  * Compresses an image file to reduce upload size and AI processing time.
  * Targets max 1600px dimensions and ~1MB file size.
  */
 export async function compressImage(file: File | Blob): Promise<File> {
-  const imageFile = file instanceof File ? file : new File([file], 'capture.jpg', { type: 'image/jpeg' });
+  const imageFile =
+    file instanceof File
+      ? file
+      : new File([file], 'capture.jpg', { type: file.type || 'image/jpeg' });
 
   const options = {
     maxSizeMB: MAX_FILE_SIZE_MB,
@@ -24,8 +28,7 @@ export async function compressImage(file: File | Blob): Promise<File> {
   };
 
   try {
-    const compressed = await imageCompression(imageFile, options);
-    return compressed;
+    return await imageCompression(imageFile, options);
   } catch (error) {
     console.warn('Image compression failed, using original:', error);
     return imageFile;
@@ -35,22 +38,24 @@ export async function compressImage(file: File | Blob): Promise<File> {
 /**
  * Uploads a food scan image to Supabase Storage.
  * Images are stored in the `food-scans` bucket under `{userId}/{scanId}.jpg`.
- * 
- * @returns The public URL of the uploaded image
  */
 export async function uploadScanImage(
   userId: string,
-  imageFile: File | Blob
+  imageFile: File | Blob,
+  skipCompression: boolean = false
 ): Promise<string> {
-  // Compress before upload
-  const compressed = await compressImage(imageFile instanceof File ? imageFile : new File([imageFile], 'capture.jpg', { type: 'image/jpeg' }));
-  
+  const fileToUpload = skipCompression
+    ? imageFile instanceof File
+      ? imageFile
+      : new File([imageFile], 'capture.jpg', { type: imageFile.type || 'image/jpeg' })
+    : await compressImage(imageFile);
+
   const scanId = crypto.randomUUID();
   const filePath = `${userId}/${scanId}.jpg`;
 
   const { data, error } = await supabase.storage
-    .from('food-scans')
-    .upload(filePath, compressed, {
+    .from(SCAN_BUCKET)
+    .upload(filePath, fileToUpload, {
       contentType: 'image/jpeg',
       cacheControl: '3600',
       upsert: false,
@@ -61,10 +66,46 @@ export async function uploadScanImage(
   }
 
   const { data: urlData } = supabase.storage
-    .from('food-scans')
+    .from(SCAN_BUCKET)
     .getPublicUrl(data.path);
 
   return urlData.publicUrl;
+}
+
+/**
+ * Extracts the bucket-relative object path from a Supabase Storage public URL.
+ */
+export function extractScanStoragePath(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null;
+  const marker = `/${SCAN_BUCKET}/`;
+  const idx = imageUrl.indexOf(marker);
+  if (idx === -1) return null;
+  return decodeURIComponent(imageUrl.slice(idx + marker.length).split('?')[0]);
+}
+
+/**
+ * Deletes a single scan image from Supabase Storage (best-effort).
+ */
+export async function deleteScanImage(imageUrl: string | null | undefined): Promise<void> {
+  const path = extractScanStoragePath(imageUrl);
+  if (!path) return;
+  const { error } = await supabase.storage.from(SCAN_BUCKET).remove([path]);
+  if (error) {
+    console.warn('Failed to delete scan image from storage:', error.message);
+  }
+}
+
+/**
+ * Deletes all stored scan images belonging to a user.
+ */
+export async function deleteAllUserScanImages(userId: string): Promise<void> {
+  const { data: files, error } = await supabase.storage.from(SCAN_BUCKET).list(userId, { limit: 1000 });
+  if (error || !files || files.length === 0) return;
+
+  const paths = files.filter((f) => f.name).map((f) => `${userId}/${f.name}`);
+  if (paths.length > 0) {
+    await supabase.storage.from(SCAN_BUCKET).remove(paths);
+  }
 }
 
 /**
@@ -75,7 +116,6 @@ export async function fileToBase64(file: File | Blob): Promise<string> {
     const reader = new FileReader();
     reader.onloadend = () => {
       const result = reader.result as string;
-      // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
       const base64 = result.split(',')[1];
       resolve(base64);
     };
