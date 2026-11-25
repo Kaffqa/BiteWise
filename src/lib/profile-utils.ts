@@ -1,6 +1,106 @@
 import { startOfDay } from 'date-fns';
-import type { UserHealthProfile } from '@/types/ai.types';
+import type { FoodAnalysisResult, UserHealthProfile } from '@/types/ai.types';
 import type { MealType } from '@/types/database.types';
+
+const ALLERGEN_SYNONYMS: Record<string, string[]> = {
+  peanuts: ['peanut', 'peanuts', 'groundnut', 'kacang tanah'],
+  'tree nuts': ['tree nut', 'tree nuts', 'almond', 'cashew', 'walnut', 'pecan', 'pistachio', 'hazelnut', 'macadamia', 'kacang mede', 'kenari'],
+  milk: ['milk', 'dairy', 'lactose', 'casein', 'whey', 'butter', 'cheese', 'cream', 'yogurt', 'susu'],
+  lactose: ['lactose', 'milk', 'dairy', 'cream', 'cheese', 'butter', 'whey', 'susu'],
+  eggs: ['egg', 'eggs', 'albumin', 'mayonnaise', 'telur'],
+  wheat: ['wheat', 'gluten', 'flour', 'bread', 'pasta', 'noodle', 'gandum', 'terigu'],
+  gluten: ['gluten', 'wheat', 'barley', 'rye', 'malt', 'gandum', 'terigu'],
+  soy: ['soy', 'soya', 'soybean', 'tofu', 'tempeh', 'edamame', 'miso', 'tamari', 'lecithin', 'kedelai', 'tahu', 'tempe', 'kecap'],
+  fish: ['fish', 'salmon', 'tuna', 'cod', 'mackerel', 'anchovy', 'sardine', 'ikan'],
+  shellfish: ['shellfish', 'crustacean', 'shrimp', 'prawn', 'crab', 'lobster', 'clam', 'mussel', 'oyster', 'scallop', 'squid', 'udang', 'kepiting', 'kerang', 'cumi'],
+  sesame: ['sesame', 'tahini', 'wijen'],
+};
+
+function matchesUserAllergen(detected: string, userTerms: string[]): boolean {
+  if (userTerms.length === 0) return false;
+  const det = detected.trim().toLowerCase();
+  if (!det) return false;
+
+  return userTerms.some((rawTerm) => {
+    const term = rawTerm.trim().toLowerCase();
+    if (!term) return false;
+    if (det.includes(term) || term.includes(det)) return true;
+
+    const synonyms = ALLERGEN_SYNONYMS[term] || [];
+    if (synonyms.some((syn) => det.includes(syn) || syn.includes(det))) {
+      return true;
+    }
+
+    // Reverse lookup: user term might be a specific synonym (e.g. "shrimp" vs detected "shellfish")
+    return Object.entries(ALLERGEN_SYNONYMS).some(
+      ([group, syns]) =>
+        (group.includes(det) || syns.some((s) => det.includes(s))) &&
+        (group.includes(term) || syns.some((s) => term.includes(s)))
+    );
+  });
+}
+
+/**
+ * Ensures detectedAllergens and allergy warnings strictly match the user's declared
+ * allergies and intolerances, preventing false "Allergen Alert" badges for safe items.
+ */
+export function sanitizeAnalysisForProfile(
+  result: FoodAnalysisResult,
+  profile: UserHealthProfile
+): FoodAnalysisResult {
+  const userAllergenTerms = [...(profile.allergies || []), ...(profile.intolerances || [])]
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const hasUserAllergies = userAllergenTerms.length > 0;
+
+  // Strip allergy-typed warnings if user has zero allergies/intolerances configured
+  const filteredWarnings = (result.healthWarnings || []).filter((w: any) => {
+    if (!hasUserAllergies && String(w?.type || '').toLowerCase() === 'allergy') {
+      return false;
+    }
+    return true;
+  });
+
+  const sanitizedItems = (result.items || []).map((item) => {
+    const rawDetected = Array.isArray(item.detectedAllergens) ? item.detectedAllergens : [];
+    const matchedAllergens = rawDetected.filter((a) => matchesUserAllergen(a, userAllergenTerms));
+
+    let itemSafety = item.safetyStatus;
+    // If the item was only marked danger because of stripped non-user allergens, restore to safe
+    if (
+      rawDetected.length > 0 &&
+      matchedAllergens.length === 0 &&
+      itemSafety === 'danger' &&
+      (result.safetyStatus === 'safe' || filteredWarnings.length === 0)
+    ) {
+      itemSafety = 'safe';
+    }
+
+    return {
+      ...item,
+      detectedAllergens: matchedAllergens,
+      safetyStatus: itemSafety,
+    };
+  });
+
+  let overallSafety = result.safetyStatus;
+  if (
+    overallSafety === 'danger' &&
+    !hasUserAllergies &&
+    filteredWarnings.length === 0 &&
+    sanitizedItems.every((i) => i.safetyStatus === 'safe')
+  ) {
+    overallSafety = 'safe';
+  }
+
+  return {
+    ...result,
+    safetyStatus: overallSafety,
+    healthWarnings: filteredWarnings,
+    items: sanitizedItems,
+  };
+}
 
 /**
  * Maps a raw Supabase profile (snake_case) or partial camelCase object into UserHealthProfile.

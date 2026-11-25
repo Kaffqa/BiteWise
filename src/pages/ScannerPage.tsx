@@ -280,7 +280,10 @@ export default function ScannerPage() {
               {/* Detected Items */}
               <div className="space-y-0 mb-6 border-t border-[#e8efe9]">
                 {Array.isArray(result.items) && result.items.map((item: any, i: number) => {
-                  const isAllergen = item.detectedAllergens && item.detectedAllergens.length > 0;
+                  const isAllergen =
+                    Array.isArray(item.detectedAllergens) &&
+                    item.detectedAllergens.length > 0 &&
+                    item.safetyStatus !== 'safe';
                   
                   let badgeClass = '';
                   let label = '';
@@ -405,7 +408,10 @@ export default function ScannerPage() {
               {/* Ingredients List */}
               <div className="space-y-0 mb-8 border-t border-[#e8efe9]">
                 {Array.isArray(result.items) && result.items.map((item: any, i: number) => {
-                  const isAllergen = item.detectedAllergens && item.detectedAllergens.length > 0;
+                  const isAllergen =
+                    Array.isArray(item.detectedAllergens) &&
+                    item.detectedAllergens.length > 0 &&
+                    item.safetyStatus !== 'safe';
                   
                   let badgeClass = '';
                   let Icon = null;

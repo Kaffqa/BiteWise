@@ -4,7 +4,7 @@ import { useNutrition } from '@/contexts/NutritionContext';
 import { useIngredients } from '@/hooks/useIngredients';
 import { compressImage, uploadScanImage, deleteScanImage, fileToBase64 } from '@/lib/storage';
 import { analyzeFood } from '@/lib/ai-provider';
-import { getMealTypeByHour, toUserHealthProfile } from '@/lib/profile-utils';
+import { getMealTypeByHour, sanitizeAnalysisForProfile, toUserHealthProfile } from '@/lib/profile-utils';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import type { FoodAnalysisResult } from '@/types/ai.types';
@@ -62,15 +62,17 @@ export function useScanner() {
       };
 
       // 3. Analyze food via authenticated serverless proxy BEFORE uploading image to Storage
-      const analysisResult = await analyzeFood(base64Data, userHealthProfile, consumedToday);
+      const rawAnalysisResult = await analyzeFood(base64Data, userHealthProfile, consumedToday);
 
       // Block non-food items before touching Storage or DB
       if (
-        (analysisResult.scanType as string) === 'not_food' ||
-        analysisResult.mealTitle.toLowerCase() === 'not a food item'
+        (rawAnalysisResult.scanType as string) === 'not_food' ||
+        rawAnalysisResult.mealTitle.toLowerCase() === 'not a food item'
       ) {
         throw new Error('NOT_FOOD');
       }
+
+      const analysisResult = sanitizeAnalysisForProfile(rawAnalysisResult, userHealthProfile);
 
       // 4. Upload verified food photo (skip double compression)
       setScanState('uploading');

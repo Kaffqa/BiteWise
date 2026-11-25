@@ -11,7 +11,7 @@ import { useNutrition } from '@/contexts/NutritionContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { analyzeText } from '@/lib/ai-provider';
 import { deleteScanImage } from '@/lib/storage';
-import { calculateStreakFromScans, getMealTypeByHour, scaleMealMacros, toUserHealthProfile } from '@/lib/profile-utils';
+import { calculateStreakFromScans, getMealTypeByHour, sanitizeAnalysisForProfile, scaleMealMacros, toUserHealthProfile } from '@/lib/profile-utils';
 import { CustomDatePicker } from '@/components/ui/CustomDatePicker';
 import { CustomTimePicker } from '@/components/ui/CustomTimePicker';
 
@@ -204,7 +204,8 @@ export function HistoryPage() {
       };
 
       const userHealthProfile = toUserHealthProfile(profile);
-      const result = await analyzeText(description, userHealthProfile, consumedToday);
+      const rawResult = await analyzeText(description, userHealthProfile, consumedToday);
+      const result = sanitizeAnalysisForProfile(rawResult, userHealthProfile);
 
       const [hours, minutes] = consumedTime.split(':');
       const consumedDate = new Date(selectedDate);

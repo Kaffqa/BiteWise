@@ -60,7 +60,8 @@ Instructions:
 2. For meals: estimate portion sizes, identify each food item, estimate nutrition per item.
 3. For labels: OCR the text, extract nutritional facts and ingredients.
 4. Cross-reference all identified ingredients against the user's health profile.
-5. Flag any warnings with severity levels ('low', 'medium', 'high', 'critical').
+   - CRITICAL ALLERGEN RULE: Only include an allergen in "detectedAllergens" if it matches the user's declared Allergies (${allergies}) or Intolerances (${intolerances}). Do NOT list general common allergens (like wheat, soy, milk, eggs, peanuts) if they are NOT in the user's Allergies/Intolerances profile. If the user has "None specified" or no match, "detectedAllergens" MUST be [] and the item must NOT be marked as an allergen danger.
+5. Flag any warnings with severity levels ('low', 'medium', 'high', 'critical') ONLY for conflicts with the user's actual profile.
 6. Provide plain-language explanations for scientific ingredient names.
 7. IMPORTANT NON-FOOD RULE: If the image clearly DOES NOT contain any food, drink, or nutritional label (e.g. a person, a keyboard, a shoe), you MUST set scanType to "not_food", mealTitle to "Not a Food Item", safetyStatus to "unknown", and set all nutrition values to 0.
 8. DAILY CONTEXT RULE: Compare this meal's nutrition against the user's remaining daily allowance. In the "dailyImpact" object:
@@ -133,7 +134,8 @@ Instructions:
 1. Parse the user's description of their meal.
 2. Estimate portion sizes, identify each food item, estimate nutrition per item.
 3. Cross-reference all identified ingredients against the user's health profile.
-4. Flag any warnings with severity levels ('low', 'medium', 'high', 'critical').
+   - CRITICAL ALLERGEN RULE: Only populate "detectedAllergens" with ingredients matching the user's declared Allergies (${allergies}) or Intolerances (${intolerances}). If the user has "None specified" or no match, "detectedAllergens" MUST be [].
+4. Flag any warnings with severity levels ('low', 'medium', 'high', 'critical') ONLY for actual conflicts with the user's profile.
 5. DAILY CONTEXT RULE: Populate "dailyImpact" comparing this meal against already consumed calories (${consumed.calories}) and daily target (${targetCalories}).
 6. SMART SWAP: Suggest 2-3 healthier/lighter alternative meals in "smartAlternatives", strictly respecting user's allergies (${allergies}), intolerances (${intolerances}), and dietary preferences (${diet}).
 7. DRUG INTERACTIONS: Check ingredients against medications (${medications}) in "drugInteractions".
