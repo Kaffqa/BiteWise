@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { generatePersonalIngredients, enrichIngredients } from '@/lib/ai-provider';
 import { toUserHealthProfile } from '@/lib/profile-utils';
+import { getDictionary } from '@/i18n';
 
 export interface UserIngredient {
   id: string;
@@ -69,7 +70,7 @@ export function useIngredients() {
       setTotalCount(count || 0);
     } catch (err: any) {
       console.error('Error fetching ingredients:', err);
-      setError(err.message || 'Failed to load ingredients');
+      setError(err.message || getDictionary().ingredients.sync.failedLoad);
     } finally {
       setLoading(false);
     }
@@ -187,23 +188,24 @@ export function useIngredients() {
 
         const newIngredientsPayload = newItemsToEnrich.map(({ ingredientName, item }) => {
           const enriched = enrichedData.find((e: any) => e.ingredientName?.toLowerCase() === ingredientName.toLowerCase()) || {};
+          const ingDict = getDictionary().ingredients;
 
           let status: 'Safe' | 'Flagged' | 'Allergen' = 'Safe';
-          let reason = enriched.reason || 'No known concerns for your profile.';
+          let reason = enriched.reason || ingDict.sync.safeDefaultReason;
           
           const itemSafety = item.item_safety_status || item.safetyStatus;
           if (itemSafety === 'danger') {
             status = 'Allergen';
-            if (!enriched.reason) reason = 'Flagged as dangerous during food scan analysis.';
+            if (!enriched.reason) reason = ingDict.sync.dangerDefaultReason;
           } else if (itemSafety === 'caution') {
             status = 'Flagged';
-            if (!enriched.reason) reason = 'Flagged as caution during food scan analysis.';
+            if (!enriched.reason) reason = ingDict.sync.cautionDefaultReason;
           }
 
           return {
             user_id: user.id,
             ingredient_name: ingredientName,
-            category: enriched.category || item.category || 'Unknown',
+            category: enriched.category || item.category || ingDict.unknownCategory,
             status,
             reason,
             description: enriched.description || item.portion_description || item.portionDescription || null,

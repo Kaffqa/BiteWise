@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { SquaresFour, Scan, BookOpenText, Note, Question, Gear } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import BrandLogo from '@/components/ui/BrandLogo';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 function NavItem({ to, exact, icon: Icon, label }: { to: string, exact?: boolean, icon: any, label: string }) {
   return (
@@ -31,6 +32,8 @@ function NavItem({ to, exact, icon: Icon, label }: { to: string, exact?: boolean
 }
 
 export default function Sidebar() {
+  const { t } = useLanguage();
+
   return (
     <aside className="w-64 flex-shrink-0 bg-white border-r border-[#e8efe9] flex flex-col h-screen sticky top-0 hidden md:flex">
       {/* Logo */}
@@ -42,15 +45,15 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 pt-6 space-y-2 font-mono overflow-y-auto">
-        <NavItem to="/app" exact icon={SquaresFour} label="Dashboard" />
-        <NavItem to="/app/scan" icon={Scan} label="Vision Scanner" />
-        <NavItem to="/app/history" icon={BookOpenText} label="Daily Log" />
-        <NavItem to="/app/ingredients" icon={Note} label="Ingredients" />
+        <NavItem to="/app" exact icon={SquaresFour} label={t.nav.dashboard} />
+        <NavItem to="/app/scan" icon={Scan} label={t.nav.visionScanner} />
+        <NavItem to="/app/history" icon={BookOpenText} label={t.nav.dailyLog} />
+        <NavItem to="/app/ingredients" icon={Note} label={t.nav.ingredients} />
       </nav>
 
       <div className="pb-8 space-y-2 font-mono pt-4 shrink-0">
-        <NavItem to="/app/help" icon={Question} label="Help" />
-        <NavItem to="/app/settings" icon={Gear} label="Settings" />
+        <NavItem to="/app/help" icon={Question} label={t.nav.help} />
+        <NavItem to="/app/settings" icon={Gear} label={t.nav.settings} />
       </div>
     </aside>
   );

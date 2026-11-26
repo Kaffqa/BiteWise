@@ -14,6 +14,7 @@ import { deleteScanImage } from '@/lib/storage';
 import { calculateStreakFromScans, getMealTypeByHour, sanitizeAnalysisForProfile, scaleMealMacros, toUserHealthProfile } from '@/lib/profile-utils';
 import { CustomDatePicker } from '@/components/ui/CustomDatePicker';
 import { CustomTimePicker } from '@/components/ui/CustomTimePicker';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const AppleEmoji = ({ emoji, className = "w-4 h-4" }: { emoji: string, className?: string }) => {
   const codePoints = Array.from(emoji).map(c => c.codePointAt(0)?.toString(16));
@@ -43,15 +44,6 @@ const getSafetyIcon = (status: string) => {
   }
 };
 
-const getSafetyLabel = (status: string) => {
-  switch (status) {
-    case 'safe': return 'Safe';
-    case 'caution': return 'Flagged';
-    case 'danger': return 'Danger';
-    default: return 'Unknown';
-  }
-};
-
 const guessEmoji = (title: string) => {
   const t = title.toLowerCase();
   if (t.includes('coffee') || t.includes('latte') || t.includes('espresso')) return '☕';
@@ -78,6 +70,16 @@ export function HistoryPage() {
   const location = useLocation();
   const { user, profile } = useAuth();
   const { refreshToday, updateMealLog, removeMealLog } = useNutrition();
+  const { lang, t, tDomain, formatText } = useLanguage();
+
+  const getSafetyLabel = (status: string) => {
+    switch (status) {
+      case 'safe': return t.common.safe;
+      case 'caution': return t.common.flagged;
+      case 'danger': return t.common.danger;
+      default: return t.common.unknown;
+    }
+  };
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [dailyCals, setDailyCals] = useState<number>(0);
 
@@ -137,7 +139,7 @@ export function HistoryPage() {
 
   // Generate the current week for the UI based on selectedDate
   useEffect(() => {
-    const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const dayNames = t.history.weekDaysShort;
     const streakArr = [];
     const today = startOfDay(new Date()).getTime();
 
@@ -161,7 +163,7 @@ export function HistoryPage() {
       });
     }
     setStreakData(streakArr);
-  }, [selectedDate, scanDays]);
+  }, [selectedDate, scanDays, t.history.weekDaysShort]);
 
   const fetchDailySummary = useCallback(async () => {
     if (!user) return;
@@ -293,7 +295,7 @@ export function HistoryPage() {
       }
     } catch (e: any) {
       console.error(e);
-      setAnalyzeError(e?.message || 'Failed to analyze and add food. Please try again.');
+      setAnalyzeError(e?.message || t.history.modal.failedAnalyze);
     } finally {
       setIsAnalyzing(false);
     }
@@ -408,7 +410,7 @@ export function HistoryPage() {
               <div className="flex md:hidden items-center gap-1">
                 <Lightning size={14} weight="fill" style={{ fill: 'url(#lightning-grad-history)' }} />
                 <span className="font-mono text-[11px] text-[#5a7a68] font-bold">
-                  {Math.round(totalCals)} kcal
+                  {Math.round(totalCals)} {t.common.kcal}
                 </span>
               </div>
             </div>
@@ -419,17 +421,17 @@ export function HistoryPage() {
             <div className="hidden md:flex items-center gap-1">
               <Lightning size={14} weight="fill" style={{ fill: 'url(#lightning-grad-history)' }} />
               <span className="font-mono text-[11px] text-[#5a7a68] font-bold">
-                {Math.round(totalCals)} kcal
+                {Math.round(totalCals)} {t.common.kcal}
               </span>
             </div>
             
             <button 
               onClick={() => openAddModal(mealType)}
               className="w-8 h-8 md:w-auto md:h-9 md:px-3 bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#c0d4c8] text-white rounded-[4px] flex items-center justify-center gap-1.5 shadow-md hover:brightness-110 active:scale-95 transition-all shrink-0"
-              aria-label={`Add food to ${title}`}
+              aria-label={formatText(t.history.addFoodAria, { title })}
             >
               <Plus size={16} weight="bold" />
-              <span className="hidden md:inline font-mono text-[11px]">Add Food</span>
+              <span className="hidden md:inline font-mono text-[11px]">{t.history.addFood}</span>
             </button>
           </div>
         </div>
@@ -439,13 +441,13 @@ export function HistoryPage() {
           {items.length === 0 ? (
             <div className="py-6 flex flex-col items-center justify-center gap-5">
               <p className="font-serif text-[16px] text-[#6b8274]">
-                No meals logged for {title.toLowerCase()} yet.
+                {formatText(t.history.noMealsFor, { meal: title.toLowerCase() })}
               </p>
               <Link
                 to="/app/scan"
                 className="w-[90%] max-w-[320px] md:w-auto md:max-w-none mx-auto bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#c0d4c8] text-white px-8 md:px-10 py-3.5 md:py-3 rounded-[4px] font-mono text-[13px] md:text-[12px] font-medium flex items-center justify-center gap-2 shadow-md hover:brightness-110 hover:-translate-y-0.5 active:scale-95 active:translate-y-0 hover:shadow-[0_8px_16px_rgba(0,0,0,0.2)] transition-all duration-200"
               >
-                <PhosphorScan size={18} weight="fill" /> Scan Your Meals
+                <PhosphorScan size={18} weight="fill" /> {t.history.scanYourMeals}
               </Link>
             </div>
           ) : (
@@ -479,21 +481,21 @@ export function HistoryPage() {
                   {/* Food Info */}
                   <div className={`flex-1 min-w-0 ${infoOpacityClass}`}>
                     <h3 className="font-serif text-[14px] md:text-[16px] text-[#1e4832] truncate group-hover:text-[#2d6b45] transition-colors mb-1">
-                      {scan.meal_title || 'Unknown Meal'}
+                      {scan.meal_title || t.history.unknownMeal}
                     </h3>
                     <div className="flex flex-col md:flex-row md:items-center font-mono text-[9px] md:text-[10px] text-[#a4b5aa] tracking-wide">
                       <div className="truncate mb-0.5 md:mb-0">
-                        {format(new Date(scan.created_at), 'hh:mm a')}
+                        {format(new Date(scan.created_at), lang === 'id' ? 'HH:mm' : 'hh:mm a')}
                         <span className="mx-1.5 md:mx-2 text-[#d1dfd6]">|</span>
-                        {Math.round(displayCals || 0)} kcal
+                        {Math.round(displayCals || 0)} {t.common.kcal}
                         <span className="mx-1.5 md:mx-2 text-[#d1dfd6]">|</span>
-                        {Math.round(displayCarbs || 0)}g Carbs
+                        {Math.round(displayCarbs || 0)}{t.history.carbsLabel}
                         <span className="hidden md:inline mx-1.5 md:mx-2 text-[#d1dfd6]">|</span>
                       </div>
                       <div className="truncate">
-                        {Math.round(displayProtein || 0)}g Protein
+                        {Math.round(displayProtein || 0)}{t.history.proteinLabel}
                         <span className="mx-1.5 md:mx-2 text-[#d1dfd6]">|</span>
-                        {Math.round(displayFat || 0)}g Fat
+                        {Math.round(displayFat || 0)}{t.history.fatLabel}
                       </div>
                     </div>
                   </div>
@@ -502,7 +504,7 @@ export function HistoryPage() {
                     {/* Portion selector for logged items */}
                     {isLogged && (
                       <select
-                        aria-label="Portion multiplier"
+                        aria-label={t.history.portionAria}
                         value={currentPortion}
                         disabled={isBusy}
                         onChange={(e) => handlePortionChange(scan, mealLog, Number(e.target.value))}
@@ -524,17 +526,17 @@ export function HistoryPage() {
                           ? 'bg-[#e8efe9] text-[#1e4832] shadow-sm'
                           : 'bg-[#fafcfb] border border-dashed border-[#c5d1c9] text-[#6b8274] hover:border-[#1e4832] hover:text-[#1e4832]'
                       }`}
-                      title={isLogged ? 'Logged to daily journal' : 'Not logged yet — click to review & log'}
+                      title={isLogged ? t.history.loggedTooltip : t.history.notLoggedTooltip}
                     >
                       {isLogged ? (
                         <>
                           <CheckCircle size={13} weight="fill" className="shrink-0" />
-                          <span className="hidden sm:inline">Logged</span>
+                          <span className="hidden sm:inline">{t.history.logged}</span>
                         </>
                       ) : (
                         <>
                           <Plus size={13} weight="bold" className="shrink-0" />
-                          <span className="hidden sm:inline">Not Logged</span>
+                          <span className="hidden sm:inline">{t.history.notLogged}</span>
                         </>
                       )}
                     </div>
@@ -557,22 +559,22 @@ export function HistoryPage() {
                           onClick={() => handleDeleteEntry(scan, mealLog)}
                           className="h-7 px-2 rounded-[4px] bg-[#991b1b] text-white font-mono text-[10px] font-bold hover:bg-[#7f1d1d] disabled:opacity-50"
                         >
-                          {isBusy ? '...' : 'Del'}
+                          {isBusy ? '...' : t.history.delShort}
                         </button>
                         <button
                           type="button"
                           onClick={() => setConfirmDeleteId(null)}
                           className="h-7 px-1.5 rounded-[4px] border border-[#d1dfd6] text-[#6b8274] font-mono text-[10px] hover:bg-[#f0f5f2]"
                         >
-                          No
+                          {t.history.noShort}
                         </button>
                       </div>
                     ) : (
                       <button
                         type="button"
                         onClick={() => setConfirmDeleteId(scan.id)}
-                        aria-label={`Delete ${scan.meal_title}`}
-                        title="Delete entry"
+                        aria-label={formatText(t.history.deleteEntryAria, { title: scan.meal_title || '' })}
+                        title={t.history.deleteEntryTitle}
                         className="h-7 w-7 rounded-[4px] border border-transparent hover:border-[#fecaca] hover:bg-[#fef2f2] text-[#a4b5aa] hover:text-[#991b1b] flex items-center justify-center transition-colors"
                       >
                         <Trash2 size={13} />
@@ -592,7 +594,7 @@ export function HistoryPage() {
   const currentCals = Math.round(dailyCals);
   const progressPercent = Math.min(100, Math.max(0, (currentCals / targetCals) * 100));
   const isToday = isTodayFn(selectedDate);
-  const dateLabel = isToday ? 'Today, ' : '';
+  const dateLabel = isToday ? t.history.todayPrefix : '';
 
   return (
     <motion.div 
@@ -605,7 +607,7 @@ export function HistoryPage() {
         
         {/* Left Side: Title and Calories (Desktop) / Top Section (Mobile) */}
         <div className="flex flex-col flex-1 w-full justify-between pr-0 md:pr-12 items-center md:items-start">
-          <h1 className="text-[32px] font-serif text-[#1e4832] leading-none mb-6 md:mb-8">Daily Journal</h1>
+          <h1 className="text-[32px] font-serif text-[#1e4832] leading-none mb-6 md:mb-8">{t.history.title}</h1>
           
           {/* Mobile Date Picker (shows after title on mobile) */}
           <div className="md:hidden mb-6 w-full max-w-[280px]">
@@ -633,7 +635,7 @@ export function HistoryPage() {
             <div className="flex items-center gap-2 mb-3">
               <Lightning size={20} weight="fill" style={{ fill: 'url(#lightning-grad-history)' }} className="mr-0.5 -mt-0.5" />
               <span className="font-mono text-[14px] text-[#1e4832] font-bold">
-                {currentCals} of {targetCals} kcal consumed
+                {formatText(t.history.consumedOf, { current: currentCals, target: targetCals })}
               </span>
             </div>
             <div className="w-full h-1.5 bg-[#e8efe9] rounded-[4px] overflow-hidden mb-4">
@@ -643,7 +645,7 @@ export function HistoryPage() {
               />
             </div>
             <p className="font-mono text-[10px] text-[#a4b5aa] leading-relaxed max-w-[280px] md:max-w-none">
-              Every scan lands here automatically. Adjust a portion and the calories update with it.
+              {t.history.subtitle}
             </p>
           </div>
         </div>
@@ -662,7 +664,9 @@ export function HistoryPage() {
           <div className="flex flex-col items-center w-full max-w-[260px]">
             <div className="flex items-center justify-center gap-2 mb-3">
               <FireSimple size={22} weight="fill" style={{ fill: 'url(#fire-grad-history)' }} className="-mt-1" />
-              <span className="font-serif text-[20px] text-[#5a7a68]">{streakCount} Days Streak</span>
+              <span className="font-serif text-[20px] text-[#5a7a68]">
+                {formatText(t.history.daysStreak, { count: streakCount })}
+              </span>
             </div>
             
             <div className="flex justify-center gap-2 w-full">
@@ -726,10 +730,10 @@ export function HistoryPage() {
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className="space-y-5"
           >
-            {renderMealSection("Breakfast", "🍳", groups.breakfast, 'breakfast')}
-            {renderMealSection("Lunch", "🥗", groups.lunch, 'lunch')}
-            {renderMealSection("Dinner", "🍲", groups.dinner, 'dinner')}
-            {renderMealSection("Snacks", "🥨", groups.snack, 'snack')}
+            {renderMealSection(t.history.breakfast, "🍳", groups.breakfast, 'breakfast')}
+            {renderMealSection(t.history.lunch, "🥗", groups.lunch, 'lunch')}
+            {renderMealSection(t.history.dinner, "🍲", groups.dinner, 'dinner')}
+            {renderMealSection(t.history.snacks, "🥨", groups.snack, 'snack')}
           </motion.div>
         )}
       </AnimatePresence>
@@ -745,7 +749,7 @@ export function HistoryPage() {
             <div className="flex items-center justify-between p-5 border-b border-[#e8efe9] bg-[#f7f9f8]">
               <div className="flex items-center gap-2">
                 <MagicWand size={20} className="text-[#1e4832]" weight="fill" />
-                <h3 className="font-serif text-[20px] text-[#1e4832] leading-none">Describe Your Meal</h3>
+                <h3 className="font-serif text-[20px] text-[#1e4832] leading-none">{t.history.modal.title}</h3>
               </div>
               <button 
                 onClick={() => setIsModalOpen(false)}
@@ -759,15 +763,15 @@ export function HistoryPage() {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block font-mono text-[11px] font-bold uppercase tracking-wider text-[#6b8274] mb-2">
-                    Meal Type
+                    {t.history.modal.mealType}
                   </label>
                   <div className="w-full p-3 bg-[#e8efe9] text-[#1e4832] font-serif text-[16px] rounded-[4px] capitalize cursor-not-allowed opacity-80">
-                    {mealTypeForAdd}
+                    {tDomain('mealType', mealTypeForAdd)}
                   </div>
                 </div>
                 <div className="flex-1">
                   <label className="block font-mono text-[11px] font-bold uppercase tracking-wider text-[#6b8274] mb-2">
-                    Time Consumed
+                    {t.history.modal.timeConsumed}
                   </label>
                   <CustomTimePicker 
                     value={consumedTime}
@@ -778,12 +782,12 @@ export function HistoryPage() {
 
               <div>
                 <label className="block font-mono text-[11px] font-bold uppercase tracking-wider text-[#6b8274] mb-2">
-                  What did you eat?
+                  {t.history.modal.whatDidYouEat}
                 </label>
                 <textarea
                   value={description}
                   onChange={e => setDescription(e.target.value)}
-                  placeholder="e.g. A bowl of chicken soup with a slice of bread"
+                  placeholder={t.history.modal.placeholder}
                   className="w-full h-28 p-4 border border-[#c5d1c9] bg-[#f4f7f5] text-[#1e4832] font-serif text-[16px] placeholder-[#a0b0a6] rounded-[4px] focus:outline-none focus:border-[#1e4832] resize-none"
                 />
               </div>
@@ -791,7 +795,7 @@ export function HistoryPage() {
               <div className="bg-[#fef3c7]/40 border border-[#fcd34d]/40 p-4 rounded-[4px] flex gap-3 items-start">
                 <MagicWand className="w-4 h-4 text-[#92400e] mt-0.5 shrink-0" weight="fill" />
                 <p className="text-[12px] font-mono leading-relaxed text-[#92400e]">
-                  Our AI will analyze your description to estimate calories, macros, and check for allergens, medications, and glycemic impact based on your health profile.
+                  {t.history.modal.aiDisclaimer}
                 </p>
               </div>
 
@@ -807,9 +811,9 @@ export function HistoryPage() {
                 className="w-full py-4 mt-2 rounded-[4px] bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#1a3825] text-white font-mono font-medium text-[13px] flex justify-center items-center gap-2 shadow-[inset_0_0_0_1.5px_rgba(255,255,255,0.3),_0_4px_12px_rgba(22,51,35,0.3)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isAnalyzing ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing & Saving...</>
+                  <><Loader2 className="w-4 h-4 animate-spin" /> {t.history.modal.analyzingSaving}</>
                 ) : (
-                  <>Analyze & Add to Journal</>
+                  <>{t.history.modal.analyzeAdd}</>
                 )}
               </button>
             </div>

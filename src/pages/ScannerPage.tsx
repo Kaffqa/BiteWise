@@ -5,9 +5,11 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCamera } from '@/hooks/useCamera';
 import { useScanner } from '@/hooks/useScanner';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function ScannerPage() {
   const navigate = useNavigate();
+  const { t, formatText } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -65,12 +67,12 @@ export default function ScannerPage() {
     const file = event.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
-        setDropError('Unsupported file type. Please choose a JPG, PNG, or WebP image.');
+        setDropError(t.scanner.unsupportedFileChoose);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        setDropError('Image is too large! Maximum file size is 5MB.');
+        setDropError(t.scanner.fileTooLarge);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
@@ -99,10 +101,10 @@ export default function ScannerPage() {
         {/* Left Column: AI Vision Scanner Card */}
         <div className={`bg-white rounded-[4px] border border-[#e8efe9] p-8 flex-col shadow-sm h-full ${result ? 'hidden lg:flex' : 'flex'}`}>
           <div>
-            <h3 className="font-serif text-[28px] text-[#1e4832] mb-3">AI Vision Scanner</h3>
+            <h3 className="font-serif text-[28px] text-[#1e4832] mb-3">{t.scanner.title}</h3>
             <p className="font-mono text-[13px] text-[#8ba797] leading-relaxed mb-8 max-w-md">
-              Snap or upload a food label to instantly detect<br />
-              allergens, hidden additives, and nutritional value.
+              {t.scanner.subtitleLine1}<br />
+              {t.scanner.subtitleLine2}
             </p>
           </div>
 
@@ -114,11 +116,11 @@ export default function ScannerPage() {
                    const file = e.dataTransfer.files[0];
                    if (file) {
                      if (!file.type.startsWith('image/')) {
-                       setDropError('Unsupported file type. Please drop a JPG, PNG, or WebP image.');
+                       setDropError(t.scanner.unsupportedFileDrop);
                        return;
                      }
                      if (file.size > 5 * 1024 * 1024) {
-                       setDropError('Image is too large! Maximum file size is 5MB.');
+                       setDropError(t.scanner.fileTooLarge);
                        return;
                      }
                      setDropError(null);
@@ -136,7 +138,7 @@ export default function ScannerPage() {
                     <button
                       type="button"
                       onClick={handleReset}
-                      aria-label="Clear selected photo"
+                      aria-label={t.scanner.clearPhotoAria}
                       className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-black/55 hover:bg-black/75 text-white flex items-center justify-center transition-colors"
                     >
                       <X size={16} />
@@ -158,27 +160,27 @@ export default function ScannerPage() {
                   <button
                     type="button"
                     onClick={toggleFacingMode}
-                    title="Switch camera"
-                    aria-label="Switch front or back camera"
+                    title={t.scanner.switchCameraTitle}
+                    aria-label={t.scanner.switchCameraAria}
                     className="absolute top-3 right-3 z-20 px-3 py-1.5 rounded-[4px] bg-black/55 hover:bg-black/75 text-white font-mono text-[11px] flex items-center gap-1.5 backdrop-blur-xs transition-colors"
                   >
                     <RefreshCw size={13} />
-                    <span>Flip</span>
+                    <span>{t.scanner.flip}</span>
                   </button>
                 </>
               ) : !previewUrl && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 z-10">
                   <span className="font-mono text-[11px] font-bold text-[#4a6353] mb-3 uppercase tracking-wide">
-                    Drag and drop an image here, or upload below
+                    {t.scanner.dragDropPrompt}
                   </span>
                   {cameraError && (
                     <span className="font-mono text-[11px] text-[#92400e] bg-[#fef3c7]/70 border border-[#fcd34d]/50 px-3 py-1.5 rounded-[4px] mb-4 max-w-xs">
-                      Camera unavailable ({cameraError}). You can upload or drop an image instead.
+                      {formatText(t.scanner.cameraUnavailable, { error: cameraError })}
                     </span>
                   )}
 
                   <span className="font-mono text-[9px] font-bold text-[#8ba797] uppercase tracking-wider mt-auto">
-                    Supports JPG, PNG, WebP (Max 5MB)
+                    {t.scanner.supportedFormats}
                   </span>
                 </div>
               )}
@@ -189,7 +191,7 @@ export default function ScannerPage() {
               <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center">
                 <div className="w-16 h-16 rounded-full border-[3px] border-[#e8efe9] border-t-[#5a8069] animate-spin mb-4" />
                 <span className="font-serif text-lg text-[#1e4832]">
-                  {scanState === 'uploading' ? 'Uploading...' : 'Analyzing...'}
+                  {scanState === 'uploading' ? t.scanner.uploading : t.scanner.analyzing}
                 </span>
               </div>
             )}
@@ -211,7 +213,7 @@ export default function ScannerPage() {
               className="flex-1 bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#c0d4c8] hover:brightness-110 hover:-translate-y-0.5 active:scale-95 active:translate-y-0 hover:shadow-[0_8px_16px_rgba(0,0,0,0.2)] transition-all duration-200 text-white py-4 rounded-[4px] font-mono text-[13px] flex items-center justify-center gap-3 shadow-md disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-md"
             >
               <PhosphorScan size={18} weight="fill" />
-              <span>{selectedFile ? "Analyse Photo" : "Capture & Analyse"}</span>
+              <span>{selectedFile ? t.scanner.analysePhoto : t.scanner.captureAnalyse}</span>
             </button>
             <button 
               onClick={() => fileInputRef.current?.click()}
@@ -227,7 +229,7 @@ export default function ScannerPage() {
             <div className="mt-4 p-4 rounded-[4px] bg-[#fecaca]/30 border border-[#fecaca] flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-[#991b1b] shrink-0" />
               <span className="text-[#991b1b] text-sm font-mono flex-1">{dropError || error}</span>
-              <button onClick={handleReset} className="text-[#991b1b] underline text-xs font-mono">Retry</button>
+              <button onClick={handleReset} className="text-[#991b1b] underline text-xs font-mono">{t.common.retry}</button>
             </div>
           )}
         </div>
@@ -247,7 +249,7 @@ export default function ScannerPage() {
                   {result.safetyStatus === 'safe' && <ShieldCheck size={14} weight="fill" />}
                   {result.safetyStatus === 'caution' && <Warning size={14} weight="fill" />}
                   {result.safetyStatus === 'danger' && <ShieldWarning size={14} weight="fill" />}
-                  {result.safetyStatus === 'safe' ? 'Safe' : result.safetyStatus === 'caution' ? 'Flagged' : 'Danger'}
+                  {result.safetyStatus === 'safe' ? t.common.safe : result.safetyStatus === 'caution' ? t.common.flagged : t.common.danger}
                 </span>
               </div>
 
@@ -261,19 +263,19 @@ export default function ScannerPage() {
               <div className="grid grid-cols-2 gap-3 mb-6">
                  <div className="bg-[#132c1e] p-4 rounded-[4px] flex flex-col items-center justify-center text-center">
                    <span className="font-serif text-[32px] text-white">{Math.round(Number(result.totalNutrition?.calories) || 0)}</span>
-                   <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mt-1">Kcal</span>
+                   <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mt-1">{t.common.kcal}</span>
                  </div>
                  <div className="bg-[#132c1e] p-4 rounded-[4px] flex flex-col items-center justify-center text-center">
                    <span className="font-serif text-[32px] text-white">{Math.round(Number(result.totalNutrition?.proteinG) || 0)}g</span>
-                   <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mt-1">Protein</span>
+                   <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mt-1">{t.common.protein}</span>
                  </div>
                  <div className="bg-[#132c1e] p-4 rounded-[4px] flex flex-col items-center justify-center text-center">
                    <span className="font-serif text-[32px] text-white">{Math.round(Number(result.totalNutrition?.carbsG) || 0)}g</span>
-                   <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mt-1">Carbs</span>
+                   <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mt-1">{t.common.carbs}</span>
                  </div>
                  <div className="bg-[#132c1e] p-4 rounded-[4px] flex flex-col items-center justify-center text-center">
                    <span className="font-serif text-[32px] text-white">{Math.round(Number(result.totalNutrition?.fatG) || 0)}g</span>
-                   <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mt-1">Fat</span>
+                   <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mt-1">{t.common.fat}</span>
                  </div>
               </div>
 
@@ -291,19 +293,19 @@ export default function ScannerPage() {
 
                   if (isAllergen) {
                     badgeClass = 'bg-[#fecaca] text-[#991b1b]';
-                    label = 'Allergen Alert';
+                    label = t.common.allergenAlert;
                     Icon = ShieldWarning;
                   } else if (item.safetyStatus === 'danger') {
                     badgeClass = 'bg-[#fecaca] text-[#991b1b]';
-                    label = 'Danger';
+                    label = t.common.danger;
                     Icon = ShieldWarning;
                   } else if (item.safetyStatus === 'caution') {
                     badgeClass = 'bg-[#fef3c7] text-[#92400e]';
-                    label = 'Flagged';
+                    label = t.common.flagged;
                     Icon = Warning;
                   } else {
                     badgeClass = 'bg-[#bbf7d0] text-[#166534]';
-                    label = 'Safe';
+                    label = t.common.safe;
                     Icon = ShieldCheck;
                   }
                   
@@ -313,7 +315,7 @@ export default function ScannerPage() {
                         <div className="font-serif text-[#1e4832] text-[16px] leading-snug">{item.name}</div>
                         {isAllergen && (
                           <div className="font-mono text-[11px] text-[#991b1b] mt-1.5 leading-tight">
-                            Allergen: {item.detectedAllergens.join(', ')}
+                            {t.scanner.allergenPrefix} {item.detectedAllergens.join(', ')}
                           </div>
                         )}
                       </div>
@@ -333,7 +335,7 @@ export default function ScannerPage() {
                      onClick={() => navigate(`/app/scan/${(result as any).id}`)} 
                      className="w-full py-3.5 rounded-[4px] bg-[#f0f5f2] border border-[#c5d1c9] font-mono text-[13px] text-[#1e4832] font-semibold hover:bg-[#e4ede7] hover:border-[#1e4832] transition-all flex items-center justify-center gap-2 shadow-xs group"
                    >
-                     <span>View Full Analysis Details</span>
+                     <span>{t.scanner.viewFullDetails}</span>
                      <ExternalLink size={15} className="group-hover:translate-x-0.5 transition-transform" />
                    </button>
                  )}
@@ -347,13 +349,13 @@ export default function ScannerPage() {
                      }} 
                      className="flex-2 w-full py-4 rounded-[4px] bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#c0d4c8] font-mono text-[13px] text-white hover:brightness-110 hover:-translate-y-0.5 active:scale-95 active:translate-y-0 hover:shadow-[0_8px_16px_rgba(0,0,0,0.2)] transition-all duration-200 shadow-md flex justify-center items-center gap-2"
                    >
-                     + Add to Daily Log
+                     {t.scanner.addToDailyLog}
                    </button>
                    <button 
                      onClick={handleReset} 
                      className="flex-1 py-4 rounded-[4px] border border-[#d1dfd6] font-mono text-[13px] text-[#8ba797] hover:border-[#5a8069] hover:text-[#5a8069] bg-white transition-all shadow-sm flex justify-center items-center gap-2 whitespace-nowrap px-4"
                    >
-                     <RefreshCw size={16} /> Rescan
+                     <RefreshCw size={16} /> {t.scanner.rescan}
                    </button>
                  </div>
               </div>
@@ -372,8 +374,8 @@ export default function ScannerPage() {
                   {result.safetyStatus === 'caution' && <Warning size={14} weight="fill" />}
                   {result.safetyStatus === 'danger' && <ShieldWarning size={14} weight="fill" />}
                   {result.safetyStatus === 'safe' 
-                    ? 'Safe' 
-                    : `${result.items?.filter((i: any) => i.safetyStatus === 'caution' || i.safetyStatus === 'danger').length || 1} Flagged`}
+                    ? t.common.safe 
+                    : formatText(t.scanner.flaggedCount, { count: result.items?.filter((i: any) => i.safetyStatus === 'caution' || i.safetyStatus === 'danger').length || 1 })}
                 </span>
                 
                 <h3 className="font-serif text-[32px] md:text-[26px] text-[#1e4832] leading-tight mb-4">{result.mealTitle}</h3>
@@ -389,19 +391,19 @@ export default function ScannerPage() {
               <div className="grid grid-cols-2 gap-3 mb-8 px-1 md:px-0">
                  <div className="bg-[#132c1e] py-6 px-2 rounded-[4px] flex flex-col items-center justify-center text-center">
                    <span className="font-serif text-[42px] leading-none text-white mb-2">{Math.round(Number(result.totalNutrition?.calories) || 0)}</span>
-                   <span className="font-mono text-[11px] text-[#8ba797]">Kcal</span>
+                   <span className="font-mono text-[11px] text-[#8ba797]">{t.common.kcal}</span>
                  </div>
                  <div className="bg-[#132c1e] py-6 px-2 rounded-[4px] flex flex-col items-center justify-center text-center">
                    <span className="font-serif text-[42px] leading-none text-white mb-2">{Math.round(Number(result.totalNutrition?.proteinG) || 0)}g</span>
-                   <span className="font-mono text-[11px] text-[#8ba797]">Protein</span>
+                   <span className="font-mono text-[11px] text-[#8ba797]">{t.common.protein}</span>
                  </div>
                  <div className="bg-[#132c1e] py-6 px-2 rounded-[4px] flex flex-col items-center justify-center text-center">
                    <span className="font-serif text-[42px] leading-none text-white mb-2">{Math.round(Number(result.totalNutrition?.carbsG) || 0)}g</span>
-                   <span className="font-mono text-[11px] text-[#8ba797]">Carbs</span>
+                   <span className="font-mono text-[11px] text-[#8ba797]">{t.common.carbs}</span>
                  </div>
                  <div className="bg-[#132c1e] py-6 px-2 rounded-[4px] flex flex-col items-center justify-center text-center">
                    <span className="font-serif text-[42px] leading-none text-white mb-2">{Math.round(Number(result.totalNutrition?.fatG) || 0)}g</span>
-                   <span className="font-mono text-[11px] text-[#8ba797]">Fat</span>
+                   <span className="font-mono text-[11px] text-[#8ba797]">{t.common.fat}</span>
                  </div>
               </div>
 
@@ -433,7 +435,7 @@ export default function ScannerPage() {
                         <div className="font-serif text-[#1e4832] text-[18px] md:text-[16px] leading-snug">{item.name}</div>
                         {isAllergen && (
                           <div className="font-mono text-[11px] text-[#991b1b] mt-1.5 leading-tight">
-                            Allergen: {item.detectedAllergens.join(', ')}
+                            {t.scanner.allergenPrefix} {item.detectedAllergens.join(', ')}
                           </div>
                         )}
                       </div>
@@ -452,7 +454,7 @@ export default function ScannerPage() {
                      onClick={() => navigate(`/app/scan/${(result as any).id}`)} 
                      className="w-full py-3.5 rounded-[4px] bg-[#f0f5f2] border border-[#c5d1c9] font-mono text-[13px] text-[#1e4832] font-semibold hover:bg-[#e4ede7] hover:border-[#1e4832] transition-all flex items-center justify-center gap-2 shadow-xs group"
                    >
-                     <span>View Full Analysis Details</span>
+                     <span>{t.scanner.viewFullDetails}</span>
                      <ExternalLink size={15} className="group-hover:translate-x-0.5 transition-transform" />
                    </button>
                  )}
@@ -466,7 +468,7 @@ export default function ScannerPage() {
                      }} 
                      className="flex-1 py-[15px] rounded-[4px] bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#c0d4c8] font-mono text-[14px] text-white hover:brightness-110 hover:-translate-y-0.5 active:scale-95 active:translate-y-0 hover:shadow-[0_8px_16px_rgba(0,0,0,0.2)] transition-all duration-200 shadow-md flex justify-center items-center gap-2 font-medium"
                    >
-                     + Add to Daily Log
+                     {t.scanner.addToDailyLog}
                    </button>
                    <button 
                      onClick={handleReset} 
@@ -480,10 +482,10 @@ export default function ScannerPage() {
           </>
         ) : (
           <div className="hidden lg:flex bg-white rounded-[4px] border border-[#e8efe9] p-8 flex-col items-center justify-center text-center shadow-sm h-full">
-            <h3 className="font-serif text-[32px] text-[#1e4832] mb-4">No Result Yet</h3>
+            <h3 className="font-serif text-[32px] text-[#1e4832] mb-4">{t.scanner.noResultYet}</h3>
             <p className="font-mono text-[12px] text-[#8ba797] max-w-xs leading-relaxed">
-              Upload an image or use your camera to<br />
-              see the AI breakdown here.
+              {t.scanner.noResultLine1}<br />
+              {t.scanner.noResultLine2}
             </p>
           </div>
         )}

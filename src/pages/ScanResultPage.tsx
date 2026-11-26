@@ -7,6 +7,7 @@ import { format, formatDistanceToNow, isToday } from 'date-fns';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useNutrition } from '@/contexts/NutritionContext';
 import { deleteScanImage } from '@/lib/storage';
 import { getMealTypeByHour, scaleMealMacros } from '@/lib/profile-utils';
@@ -14,6 +15,7 @@ import type { MealType } from '@/types/database.types';
 import type { SmartSwapAlternative, DrugInteraction, GlycemicAnalysis } from '@/types/ai.types';
 
 export function GlycemicCurveChart({ analysis }: { analysis: GlycemicAnalysis }) {
+  const { t, formatText } = useLanguage();
   const points = analysis.curveDataPoints || [];
   if (points.length === 0) return null;
 
@@ -66,7 +68,7 @@ export function GlycemicCurveChart({ analysis }: { analysis: GlycemicAnalysis })
 
         {/* Fasting Baseline (90 mg/dL) */}
         <line x1={padL} y1={baselineY} x2={width - padR} y2={baselineY} stroke="#94a3b8" strokeDasharray="3 3" strokeWidth="1" />
-        <text x={width - padR} y={baselineY - 4} fill="#64748b" fontSize="9" textAnchor="end">Fasting Baseline (90 mg/dL)</text>
+        <text x={width - padR} y={baselineY - 4} fill="#64748b" fontSize="9" textAnchor="end">{t.scanResult.fastingBaseline}</text>
 
         {/* Curve stroke */}
         <path d={pathD} fill="none" stroke={strokeColor} strokeWidth="2.5" strokeLinecap="round" />
@@ -88,9 +90,9 @@ export function GlycemicCurveChart({ analysis }: { analysis: GlycemicAnalysis })
         <circle cx={peakX} cy={peakY} r="10" fill="none" stroke={strokeColor} strokeWidth="1.5" opacity="0.6" />
         
         {/* Peak Label badge */}
-        <rect x={peakX - 42} y={peakY - 28} width="84" height="20" rx="3" fill="#1e4832" />
+        <rect x={peakX - 46} y={peakY - 28} width="92" height="20" rx="3" fill="#1e4832" />
         <text x={peakX} y={peakY - 14} fill="#ffffff" fontSize="9" fontWeight="normal" textAnchor="middle">
-          Peak: {peakPoint.glucoseMgDl} mg/dL
+          {formatText(t.scanResult.peakLabel, { val: peakPoint.glucoseMgDl })}
         </text>
 
         {/* X Axis ticks */}
@@ -99,7 +101,7 @@ export function GlycemicCurveChart({ analysis }: { analysis: GlycemicAnalysis })
           return (
             <g key={min}>
               <line x1={x} y1={height - padB} x2={x} y2={height - padB + 5} stroke="#cbd5e1" strokeWidth="1" />
-              <text x={x} y={height - padB + 16} fill="#8ba797" fontSize="9" textAnchor="middle">{min}m</text>
+              <text x={x} y={height - padB + 16} fill="#8ba797" fontSize="9" textAnchor="middle">{min}{t.scanResult.minSuffix}</text>
             </g>
           );
         })}
@@ -112,6 +114,7 @@ export default function ScanResultPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const { t, tDomain, formatText, dateLocale } = useLanguage();
   const { addMealLog, updateMealLog, removeMealLog, refreshToday } = useNutrition();
 
   const [loading, setLoading] = useState(true);
@@ -148,7 +151,7 @@ export default function ScanResultPage() {
       setScanItems(itemsData || []);
     } catch (err: any) {
       console.error('Error fetching scan results:', err);
-      setError(err.message || 'Failed to load scan results');
+      setError(err.message || t.scanResult.failedLoad);
     } finally {
       setLoading(false);
     }
@@ -332,12 +335,12 @@ export default function ScanResultPage() {
         <div className="w-16 h-16 rounded-[4px] bg-[#f0f5f2] flex items-center justify-center">
           <Warning className="w-8 h-8 text-[#6b8274]" weight="fill" />
         </div>
-        <p className="text-[#1e4832] font-serif text-[24px]">{error || 'Scan not found'}</p>
+        <p className="text-[#1e4832] font-serif text-[24px]">{error || t.scanResult.scanNotFound}</p>
         <button 
           onClick={() => navigate('/app/history')} 
           className="px-6 py-2.5 rounded-[4px] border border-[#c5d1c9] text-[#1e4832] font-mono text-[12px] font-semibold hover:bg-[#f0f5f2] transition-colors"
         >
-          Go Back
+          {t.scanResult.goBack}
         </button>
       </div>
     );
@@ -348,10 +351,10 @@ export default function ScanResultPage() {
   const shouldShowLoggedState = isAlreadyLogged || logStatus === 'success' || (isSafe && logStatus !== 'idle');
 
   const safetyConfig: Record<string, { bg: string; text: string; label: string; icon: any; border: string }> = {
-    safe: { bg: 'bg-[#bbf7d0]', text: 'text-[#166534]', border: 'border-[#4ade80]/30', label: 'Safe', icon: ShieldCheck },
-    caution: { bg: 'bg-[#fef3c7]', text: 'text-[#92400e]', border: 'border-[#fcd34d]/40', label: 'Flagged', icon: Warning },
-    danger: { bg: 'bg-[#fecaca]', text: 'text-[#991b1b]', border: 'border-[#f87171]/30', label: 'Allergen Alert', icon: ShieldWarning },
-    unknown: { bg: 'bg-[#e8efe9]', text: 'text-[#6b8274]', border: 'border-[#c5d1c9]', label: 'Unknown', icon: ShieldCheck },
+    safe: { bg: 'bg-[#bbf7d0]', text: 'text-[#166534]', border: 'border-[#4ade80]/30', label: t.common.safe, icon: ShieldCheck },
+    caution: { bg: 'bg-[#fef3c7]', text: 'text-[#92400e]', border: 'border-[#fcd34d]/40', label: t.common.flagged, icon: Warning },
+    danger: { bg: 'bg-[#fecaca]', text: 'text-[#991b1b]', border: 'border-[#f87171]/30', label: t.common.allergenAlert, icon: ShieldWarning },
+    unknown: { bg: 'bg-[#e8efe9]', text: 'text-[#6b8274]', border: 'border-[#c5d1c9]', label: t.common.unknown, icon: ShieldCheck },
   };
 
   const status = safetyConfig[scanRecord.safety_status] || safetyConfig.unknown;
@@ -371,53 +374,56 @@ export default function ScanResultPage() {
     const avoidNuts = userAllergies.some((a) => a.includes('nut') || a.includes('peanut'));
     const avoidSoy = userAllergies.some((a) => a.includes('soy'));
 
+    const swapDict = t.scanResult.fallbacks.swaps;
+    const origTitle = scanRecord.meal_title || t.scanResult.fallbacks.currentMeal;
+
     const candidates: Array<SmartSwapAlternative & { containsAnimal?: boolean; containsNuts?: boolean; containsSoy?: boolean; containsGluten?: boolean }> = [
       {
-        originalItem: scanRecord.meal_title || 'Current Meal',
-        alternativeName: 'Oat & Chia Seed Warm Bowl with Fresh Berries',
-        reason: 'Low glycemic response with soluble beta-glucan fiber and zero common nut, soy, or animal allergens.',
+        originalItem: origTitle,
+        alternativeName: swapDict.oatBowlName,
+        reason: swapDict.oatBowlReason,
         calories: Math.max(210, Math.round(mealCal * 0.5)),
         proteinG: 14,
         carbsG: 32,
         fatG: 7,
         safetyStatus: 'safe',
-        tags: ['Low GI', 'Allergen-Friendly', 'High Fiber'],
+        tags: swapDict.oatBowlTags,
         containsGluten: false,
       },
       {
-        originalItem: scanRecord.meal_title || 'Current Meal',
-        alternativeName: 'Shirataki Rice with Grilled Chicken & Steamed Greens',
-        reason: 'Saves calories and replaces high-GI white starch with prebiotic konjac glucomannan and lean protein.',
+        originalItem: origTitle,
+        alternativeName: swapDict.shiratakiName,
+        reason: swapDict.shiratakiReason,
         calories: Math.max(220, Math.round(mealCal * 0.55)),
         proteinG: 28,
         carbsG: 18,
         fatG: 6,
         safetyStatus: 'safe',
-        tags: ['Lower Calorie', 'Low GI', 'High Protein'],
+        tags: swapDict.shiratakiTags,
         containsAnimal: true,
       },
       {
-        originalItem: scanRecord.meal_title || 'Current Meal',
-        alternativeName: 'Steamed Quinoa, Edamame & Avocado Salad Bowl',
-        reason: '100% plant-based complete protein with steady energy release and heart-healthy monounsaturated fats.',
+        originalItem: origTitle,
+        alternativeName: swapDict.quinoaName,
+        reason: swapDict.quinoaReason,
         calories: Math.max(250, Math.round(mealCal * 0.6)),
         proteinG: 20,
         carbsG: 28,
         fatG: 9,
         safetyStatus: 'safe',
-        tags: ['Plant-Based', 'Heart-Healthy', 'Low GI'],
+        tags: swapDict.quinoaTags,
         containsSoy: true,
       },
       {
-        originalItem: scanRecord.meal_title || 'Current Meal',
-        alternativeName: 'Fresh Gado-Gado with Cashew Dressing & Baked Tempeh',
-        reason: 'Replaces saturated frying oil with plant-based protein and high dietary fiber to mitigate glucose response.',
+        originalItem: origTitle,
+        alternativeName: swapDict.gadoName,
+        reason: swapDict.gadoReason,
         calories: Math.max(280, Math.round(mealCal * 0.65)),
         proteinG: 22,
         carbsG: 26,
         fatG: 11,
         safetyStatus: 'safe',
-        tags: ['High Fiber', 'Indonesian Local'],
+        tags: swapDict.gadoTags,
         containsNuts: true,
         containsSoy: true,
       },
@@ -464,7 +470,7 @@ export default function ScanResultPage() {
         { minutesAfterEating: 165, glucoseMgDl: 92 },
         { minutesAfterEating: 180, glucoseMgDl: 90 },
       ],
-      tipToReduceSpike: 'Food sequencing: Eat vegetables and proteins before carbohydrates to flatten your glucose spike by up to 30%.',
+      tipToReduceSpike: t.scanResult.fallbacks.tipDefault,
       fiberMitigationFactor: Number((fiber / (totalCarbs || 1)).toFixed(2))
     };
   }
@@ -482,7 +488,7 @@ export default function ScanResultPage() {
             onClick={() => navigate('/app/history')} 
             className="inline-flex px-4 py-2 bg-white border border-[#cfdfd5] rounded-[4px] text-sm font-mono text-[#5a7a68] hover:bg-[#f0f5f2] hover:text-[#1e4832] transition-colors items-center gap-2"
           >
-            <CaretLeft size={16} /> Back to Daily Log
+            <CaretLeft size={16} /> {t.scanResult.backToDailyLog}
           </button>
         </div>
 
@@ -513,14 +519,16 @@ export default function ScanResultPage() {
               
               <div className="p-6 lg:p-8">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-2">
-                  <h2 className="text-[28px] font-serif text-[#1e4832] leading-tight">{scanRecord.meal_title || 'Unknown Meal'}</h2>
+                  <h2 className="text-[28px] font-serif text-[#1e4832] leading-tight">{scanRecord.meal_title || t.scanResult.unknownMeal}</h2>
                   <div className={"self-start inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-[4px] text-[10px] capitalize tracking-wider font-mono font-bold " + status.bg + " " + status.text + " border " + status.border + " flex-shrink-0"}>
                     {React.createElement(status.icon, { size: 14, weight: "fill" })}
                     {status.label}
                   </div>
                 </div>
                 <p className="font-mono text-[10px] capitalize tracking-wider text-[#8ba797] mt-1">
-                  Scanned {formatDistanceToNow(new Date(scanRecord.created_at), { addSuffix: true })}
+                  {formatText(t.scanResult.scannedAgo, {
+                    time: formatDistanceToNow(new Date(scanRecord.created_at), { addSuffix: true, locale: dateLocale }),
+                  })}
                 </p>
               </div>
             </div>
@@ -538,12 +546,12 @@ export default function ScanResultPage() {
                       <Pill size={18} />
                     </div>
                     <div>
-                      <h3 className="font-serif text-[20px] text-[#991b1b] leading-tight">Food-Drug Interaction Guardian</h3>
-                      <p className="font-mono text-[10px] text-[#dc2626] uppercase tracking-wider">Clinical Pharmacological Alert</p>
+                      <h3 className="font-serif text-[20px] text-[#991b1b] leading-tight">{t.scanResult.drugGuardianTitle}</h3>
+                      <p className="font-mono text-[10px] text-[#dc2626] uppercase tracking-wider">{t.scanResult.drugGuardianSubtitle}</p>
                     </div>
                   </div>
                   <span className="px-2.5 py-1 rounded-[4px] bg-[#fecaca] text-[#991b1b] font-mono text-[10px] font-bold uppercase tracking-wider">
-                    {drugInteractions.length} Flagged
+                    {formatText(t.scanResult.itemsFlagged, { count: drugInteractions.length })}
                   </span>
                 </div>
 
@@ -563,19 +571,19 @@ export default function ScanResultPage() {
                         <span className={`self-start sm:self-auto px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${
                           interaction.severity === 'severe' ? 'bg-[#dc2626] text-white' : 'bg-[#fef3c7] text-[#92400e]'
                         }`}>
-                          {interaction.severity} Risk
+                          {formatText(t.scanResult.riskSuffix, { severity: tDomain('severity', interaction.severity) })}
                         </span>
                       </div>
 
                       <p className="text-[12px] font-mono text-[#7f1d1d] leading-relaxed mb-2.5">
-                        <strong className="text-[#991b1b]">Mechanism: </strong>
+                        <strong className="text-[#991b1b]">{t.scanResult.mechanism}</strong>
                         {interaction.mechanism}
                       </p>
 
                       <div className="bg-white/80 p-2.5 rounded-[3px] border border-[#fecaca] flex items-start gap-2">
                         <Info size={14} className="text-[#dc2626] shrink-0 mt-0.5" />
                         <p className="text-[11px] font-mono text-[#991b1b] leading-tight">
-                          <strong>Clinical Advice: </strong>{interaction.recommendation}
+                          <strong>{t.scanResult.clinicalAdvice}</strong>{interaction.recommendation}
                         </p>
                       </div>
                     </div>
@@ -588,8 +596,8 @@ export default function ScanResultPage() {
             {scanItems.length > 0 && (
               <div className="bg-white rounded-[4px] border border-[#e8efe9] shadow-sm p-6 lg:p-8 flex-1">
                 <div className="flex justify-between items-center mb-5">
-                  <h3 className="font-serif text-[24px] text-[#1e4832]">Detected Ingredients</h3>
-                  <span className="font-mono text-[11px] capitalize tracking-wider text-[#8ba797]">{scanItems.length} items</span>
+                  <h3 className="font-serif text-[24px] text-[#1e4832]">{t.scanResult.detectedIngredients}</h3>
+                  <span className="font-mono text-[11px] capitalize tracking-wider text-[#8ba797]">{formatText(t.scanResult.itemsCount, { count: scanItems.length })}</span>
                 </div>
                 <div className="flex flex-col">
                   {scanItems.map((item, idx) => {
@@ -607,7 +615,7 @@ export default function ScanResultPage() {
                         </div>
                         <div className="text-right flex items-center gap-3 sm:gap-4 shrink-0">
                           <div className="font-mono text-[10px] text-[#8ba797] capitalize tracking-wider">
-                            <span>{item.calories} kcal</span>
+                            <span>{item.calories} {t.common.kcal}</span>
                           </div>
                           <div className={"shrink-0 whitespace-nowrap w-[115px] sm:w-[125px] flex items-center justify-center gap-1.5 py-1.5 " + itemStatus.bg + " " + itemStatus.text + " text-[10px] font-mono font-bold capitalize tracking-wider rounded-[4px]"}>
                             {React.createElement(itemStatus.icon, { size: 12, weight: "fill" })}
@@ -632,14 +640,14 @@ export default function ScanResultPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <ArrowLeftRight size={20} className="text-[#166534]" />
-                      <h3 className="font-serif text-[24px] text-[#1e4832]">Smart Swap Alternatives</h3>
+                      <h3 className="font-serif text-[24px] text-[#1e4832]">{t.scanResult.smartSwapTitle}</h3>
                     </div>
                     <p className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mt-1">
-                      Healthier cultural replacements tailored to your profile
+                      {t.scanResult.smartSwapSubtitle}
                     </p>
                   </div>
                   <span className="self-start sm:self-auto font-mono text-[11px] text-[#166534] bg-[#f0f5f2] border border-[#c5d1c9] px-3 py-1 rounded-[4px] font-bold">
-                    {smartAlternatives.length} Recommendations
+                    {formatText(t.scanResult.recommendationsCount, { count: smartAlternatives.length })}
                   </span>
                 </div>
 
@@ -657,15 +665,15 @@ export default function ScanResultPage() {
                         <div>
                           <div className="flex justify-between items-start gap-2 mb-2">
                             <span className="font-mono text-[9px] text-[#8ba797] uppercase tracking-wider truncate max-w-[170px]">
-                              Replaces: {alt.originalItem || 'Scanned Meal'}
+                              {formatText(t.scanResult.replaces, { item: alt.originalItem || t.scanResult.fallbacks.scannedMeal })}
                             </span>
                             {calSavings > 0 ? (
                               <span className="px-2 py-0.5 rounded-[2px] bg-[#bbf7d0] text-[#166534] font-mono font-bold text-[10px] shrink-0">
-                                -{calSavings} kcal
+                                -{calSavings} {t.common.kcal}
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-[2px] bg-[#f0f5f2] text-[#1e4832] font-mono font-bold text-[10px] shrink-0">
-                                {alt.calories} kcal
+                                {alt.calories} {t.common.kcal}
                               </span>
                             )}
                           </div>
@@ -675,9 +683,9 @@ export default function ScanResultPage() {
                           </h4>
 
                           <div className="flex flex-wrap gap-1.5 mb-3">
-                            {alt.tags?.map((t, ti) => (
+                            {alt.tags?.map((tag, ti) => (
                               <span key={ti} className="px-2 py-0.5 rounded-[2px] bg-[#f0f5f2] text-[#5a7a68] font-mono text-[9px]">
-                                {t}
+                                {tag}
                               </span>
                             ))}
                           </div>
@@ -691,15 +699,15 @@ export default function ScanResultPage() {
                           {/* Macro pills */}
                           <div className="grid grid-cols-3 gap-2 py-2.5 border-t border-[#e8efe9] text-center font-mono text-[10px]">
                             <div>
-                              <span className="block text-[#8ba797] text-[8px] uppercase">Protein</span>
+                              <span className="block text-[#8ba797] text-[8px] uppercase">{t.common.protein}</span>
                               <span className="font-bold text-[#1e4832]">{Math.round(alt.proteinG || 0)}g</span>
                             </div>
                             <div className="border-l border-r border-[#e8efe9]">
-                              <span className="block text-[#8ba797] text-[8px] uppercase">Carbs</span>
+                              <span className="block text-[#8ba797] text-[8px] uppercase">{t.common.carbs}</span>
                               <span className="font-bold text-[#1e4832]">{Math.round(alt.carbsG || 0)}g</span>
                             </div>
                             <div>
-                              <span className="block text-[#8ba797] text-[8px] uppercase">Fat</span>
+                              <span className="block text-[#8ba797] text-[8px] uppercase">{t.common.fat}</span>
                               <span className="font-bold text-[#1e4832]">{Math.round(alt.fatG || 0)}g</span>
                             </div>
                           </div>
@@ -715,11 +723,11 @@ export default function ScanResultPage() {
                             }`}
                           >
                             {isSwappingThis ? (
-                              <><Loader2 size={12} className="animate-spin" /> Logging Swap...</>
+                              <><Loader2 size={12} className="animate-spin" /> {t.scanResult.loggingSwap}</>
                             ) : isSwappedThis ? (
-                              <><Check size={12} /> Logged as {selectedMealType}</>
+                              <><Check size={12} /> {formatText(t.scanResult.loggedAs, { mealType: tDomain('mealType', selectedMealType) })}</>
                             ) : (
-                              <>Log This Swap Instead</>
+                              <>{t.scanResult.logSwapInstead}</>
                             )}
                           </button>
                         </div>
@@ -741,48 +749,48 @@ export default function ScanResultPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <Activity size={20} className="text-[#1e4832]" />
-                      <h3 className="font-serif text-[24px] text-[#1e4832]">Glycemic Spike Simulator</h3>
+                      <h3 className="font-serif text-[24px] text-[#1e4832]">{t.scanResult.glycemicTitle}</h3>
                     </div>
                     <p className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mt-1">
-                      Estimated 3-hour postprandial glucose response curve
+                      {t.scanResult.glycemicSubtitle}
                     </p>
                   </div>
 
                   {/* Spike Level Badge */}
                   <div className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-[10px] font-mono font-bold uppercase tracking-wider border bg-[#f0f5f2] text-[#1e4832] border-[#c5d1c9]">
                     <TrendingUp size={12} />
-                    {glycemicAnalysis.spikeLevel} Glucose Spike
+                    {formatText(t.scanResult.glucoseSpike, { level: tDomain('spikeLevel', glycemicAnalysis.spikeLevel) })}
                   </div>
                 </div>
 
                 {/* Metric Bar */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 font-mono">
                   <div className="bg-[#f0f5f2] p-3 rounded-[4px] text-center border border-[#e8efe9]">
-                    <span className="block text-[9px] text-[#8ba797] uppercase">Est. Glycemic Index</span>
+                    <span className="block text-[9px] text-[#8ba797] uppercase">{t.scanResult.estGI}</span>
                     <span className="font-serif text-[18px] text-[#1e4832] font-semibold">{glycemicAnalysis.estimatedGI}</span>
                     <span className="block text-[8px] text-[#6b8274]">
-                      {glycemicAnalysis.estimatedGI > 70 ? 'High GI' : glycemicAnalysis.estimatedGI > 55 ? 'Medium GI' : 'Low GI'}
+                      {glycemicAnalysis.estimatedGI > 70 ? t.scanResult.highGI : glycemicAnalysis.estimatedGI > 55 ? t.scanResult.mediumGI : t.scanResult.lowGI}
                     </span>
                   </div>
 
                   <div className="bg-[#f0f5f2] p-3 rounded-[4px] text-center border border-[#e8efe9]">
-                    <span className="block text-[9px] text-[#8ba797] uppercase">Glycemic Load</span>
+                    <span className="block text-[9px] text-[#8ba797] uppercase">{t.scanResult.glycemicLoad}</span>
                     <span className="font-serif text-[18px] text-[#1e4832] font-semibold">{Math.round(Number(glycemicAnalysis.glycemicLoad) || 0)}</span>
                     <span className="block text-[8px] text-[#6b8274]">
-                      {glycemicAnalysis.glycemicLoad >= 20 ? 'High' : glycemicAnalysis.glycemicLoad >= 11 ? 'Moderate' : 'Low'}
+                      {glycemicAnalysis.glycemicLoad >= 20 ? t.scanResult.glHigh : glycemicAnalysis.glycemicLoad >= 11 ? t.scanResult.glModerate : t.scanResult.glLow}
                     </span>
                   </div>
 
                   <div className="bg-[#f0f5f2] p-3 rounded-[4px] text-center border border-[#e8efe9]">
-                    <span className="block text-[9px] text-[#8ba797] uppercase">Estimated Peak</span>
+                    <span className="block text-[9px] text-[#8ba797] uppercase">{t.scanResult.estPeak}</span>
                     <span className="font-serif text-[18px] text-[#1e4832] font-semibold">{Math.round(Number(glycemicAnalysis.peakGlucoseMgDl) || 0)}</span>
-                    <span className="block text-[8px] text-[#6b8274]">mg/dL (~45 min)</span>
+                    <span className="block text-[8px] text-[#6b8274]">{t.scanResult.mgDlMinutes}</span>
                   </div>
 
                   <div className="bg-[#f0f5f2] p-3 rounded-[4px] text-center border border-[#e8efe9]">
-                    <span className="block text-[9px] text-[#8ba797] uppercase">Time to Baseline</span>
+                    <span className="block text-[9px] text-[#8ba797] uppercase">{t.scanResult.timeToBaseline}</span>
                     <span className="font-serif text-[18px] text-[#1e4832] font-semibold">{glycemicAnalysis.timeToBaselineMinutes}</span>
-                    <span className="block text-[8px] text-[#6b8274]">Minutes</span>
+                    <span className="block text-[8px] text-[#6b8274]">{t.scanResult.minutes}</span>
                   </div>
                 </div>
 
@@ -796,7 +804,7 @@ export default function ScanResultPage() {
                   <Lightbulb size={16} className="text-[#166534] shrink-0 mt-0.5" />
                   <div>
                     <h5 className="font-mono text-[11px] font-bold text-[#166534] uppercase tracking-wider mb-0.5">
-                      Glucose Curve Flattening Hack
+                      {t.scanResult.glucoseHackTitle}
                     </h5>
                     <p className="font-mono text-[11px] text-[#1e4832] leading-relaxed">
                       {glycemicAnalysis.tipToReduceSpike}
@@ -815,18 +823,18 @@ export default function ScanResultPage() {
                 <div className="flex flex-col items-center gap-4">
                   <p className="font-mono text-[12px] text-[#166534] text-center max-w-sm">
                     {isSafe && !isAlreadyLogged && logStatus !== 'success' 
-                      ? "This meal was deemed safe and has been automatically logged." 
-                      : "This meal has already been logged to your journal."}
+                      ? t.scanResult.autoLoggedMsg 
+                      : t.scanResult.alreadyLoggedMsg}
                   </p>
                   <div className="w-full py-3.5 rounded-[4px] bg-[#f0f5f2] border border-[#c5d1c9] text-[#166534] font-mono font-bold text-[13px] flex justify-center items-center gap-2">
                     <CheckCircle className="w-5 h-5" weight="fill" />
-                    {isSafe && !isAlreadyLogged && logStatus !== 'success' ? 'Automatically Logged' : 'Already Logged'}
+                    {isSafe && !isAlreadyLogged && logStatus !== 'success' ? t.scanResult.autoLoggedBadge : t.scanResult.alreadyLoggedBadge}
                   </div>
 
                   {scanRecord.meal_logs?.[0] && (
                     <div className="w-full pt-3 border-t border-[#e8efe9] flex flex-col gap-3">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-[11px] text-[#6b8274] uppercase">Portion Size</span>
+                        <span className="font-mono text-[11px] text-[#6b8274] uppercase">{t.scanResult.portionSize}</span>
                         <div className="flex gap-1.5">
                           {[0.5, 1, 1.5, 2].map((mult) => {
                             const active = (Number(scanRecord.meal_logs[0].portion_multiplier) || 1) === mult;
@@ -854,7 +862,7 @@ export default function ScanResultPage() {
                         onClick={() => handleUnlogMeal(scanRecord.meal_logs[0].id)}
                         className="w-full py-2 rounded-[4px] border border-[#e0e8e3] text-[#6b8274] hover:text-[#991b1b] hover:border-[#fecaca] hover:bg-[#fef2f2] font-mono text-[11px] transition-colors"
                       >
-                        Remove from Daily Log
+                        {t.scanResult.removeFromLog}
                       </button>
                     </div>
                   )}
@@ -863,23 +871,23 @@ export default function ScanResultPage() {
                 <div className="flex flex-col items-center gap-4">
                   <p className="font-mono text-[12px] text-[#6b8274] text-center max-w-sm">
                     {!isToday(new Date(scanRecord.created_at)) 
-                      ? "This meal was scanned on a different day and cannot be logged to today's journal." 
-                      : "This meal has flagged items. Choose a meal time below if you still want to log it."}
+                      ? t.scanResult.differentDayMsg 
+                      : t.scanResult.flaggedItemsMsg}
                   </p>
                   {isToday(new Date(scanRecord.created_at)) && (
                     <div className="w-full">
                       <label className="block font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mb-1.5">
-                        Meal Category
+                        {t.scanResult.mealCategory}
                       </label>
                       <select
                         value={selectedMealType}
                         onChange={(e) => setSelectedMealType(e.target.value as MealType)}
                         className="w-full px-3 py-2 rounded-[4px] bg-[#f7f9f8] border border-[#c5d1c9] text-[#1e4832] font-mono text-[12px] focus:outline-none focus:border-[#1e4832]"
                       >
-                        <option value="breakfast">Breakfast</option>
-                        <option value="lunch">Lunch</option>
-                        <option value="dinner">Dinner</option>
-                        <option value="snack">Snack</option>
+                        <option value="breakfast">{tDomain('mealType', 'breakfast')}</option>
+                        <option value="lunch">{tDomain('mealType', 'lunch')}</option>
+                        <option value="dinner">{tDomain('mealType', 'dinner')}</option>
+                        <option value="snack">{tDomain('mealType', 'snack')}</option>
                       </select>
                     </div>
                   )}
@@ -889,9 +897,9 @@ export default function ScanResultPage() {
                     className="w-full py-4 rounded-[4px] bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#1a3825] text-white font-mono font-medium text-[13px] flex justify-center items-center gap-2 shadow-[inset_0_0_0_1.5px_rgba(255,255,255,0.3),_0_4px_12px_rgba(22,51,35,0.3)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {logStatus === 'logging' ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> Logging...</>
+                      <><Loader2 className="w-4 h-4 animate-spin" /> {t.scanResult.logging}</>
                     ) : (
-                      <><PlusCircle className="w-4 h-4" weight="bold" /> Log Anyway</>
+                      <><PlusCircle className="w-4 h-4" weight="bold" /> {t.scanResult.logAnyway}</>
                     )}
                   </button>
                 </div>
@@ -901,7 +909,7 @@ export default function ScanResultPage() {
               <div className="mt-4 pt-4 border-t border-[#e8efe9]">
                 {confirmDeleteScan ? (
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-[11px] text-[#991b1b]">Delete this scan permanently?</span>
+                    <span className="font-mono text-[11px] text-[#991b1b]">{t.scanResult.deleteConfirmMsg}</span>
                     <div className="flex gap-2">
                       <button
                         type="button"
@@ -909,14 +917,14 @@ export default function ScanResultPage() {
                         onClick={handleDeleteScan}
                         className="px-3 py-1.5 rounded-[4px] bg-[#991b1b] text-white font-mono text-[11px] font-bold hover:bg-[#7f1d1d]"
                       >
-                        {isMutating ? 'Deleting...' : 'Confirm'}
+                        {isMutating ? t.common.deleting : t.common.confirm}
                       </button>
                       <button
                         type="button"
                         onClick={() => setConfirmDeleteScan(false)}
                         className="px-3 py-1.5 rounded-[4px] border border-[#c5d1c9] text-[#6b8274] font-mono text-[11px]"
                       >
-                        Cancel
+                        {t.common.cancel}
                       </button>
                     </div>
                   </div>
@@ -926,7 +934,7 @@ export default function ScanResultPage() {
                     onClick={() => setConfirmDeleteScan(true)}
                     className="w-full py-2 rounded-[4px] text-[#a4b5aa] hover:text-[#991b1b] hover:bg-[#fef2f2] font-mono text-[11px] flex items-center justify-center gap-1.5 transition-colors"
                   >
-                    <Trash2 size={13} /> Delete Scan Record
+                    <Trash2 size={13} /> {t.scanResult.deleteScanRecord}
                   </button>
                 )}
               </div>
@@ -937,14 +945,14 @@ export default function ScanResultPage() {
               <div className="bg-white rounded-[4px] border border-[#e8efe9] shadow-sm p-6 lg:p-8">
                 <div className="flex items-center gap-2 mb-5">
                   <Warning className="w-5 h-5 text-[#92400e]" weight="fill" />
-                  <h3 className="font-serif text-[24px] text-[#1e4832]">Health Warnings</h3>
+                  <h3 className="font-serif text-[24px] text-[#1e4832]">{t.scanResult.healthWarnings}</h3>
                 </div>
                 <div className="space-y-3">
                   {scanRecord.health_warnings.map((warning: any, idx: number) => (
                     <div key={idx} className="bg-[#fef3c7]/50 border border-[#fcd34d]/40 p-4 rounded-[4px]">
                       <div className="flex items-center gap-2 mb-1.5">
                         <Info className="w-4 h-4 text-[#92400e]" weight="fill" />
-                        <h4 className="font-serif text-[14px] text-[#92400e] font-medium">{warning.title || warning.type || 'Warning'}</h4>
+                        <h4 className="font-serif text-[14px] text-[#92400e] font-medium">{warning.title || warning.type || t.scanResult.warningFallback}</h4>
                       </div>
                       <p className="text-[#6b8274] text-[12px] font-mono leading-relaxed pl-6">{warning.detail || warning.message}</p>
                     </div>
@@ -975,9 +983,9 @@ export default function ScanResultPage() {
               return (
                 <div className="bg-white rounded-[4px] border border-[#e8efe9] shadow-sm p-6 lg:p-8">
                   <div className="flex items-center justify-between mb-5">
-                    <h3 className="font-serif text-[24px] text-[#1e4832]">Nutritional Breakdown</h3>
+                    <h3 className="font-serif text-[24px] text-[#1e4832]">{t.scanResult.nutritionalBreakdown}</h3>
                     <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider bg-[#f0f5f2] px-2.5 py-1 rounded-[3px]">
-                      Per Serving
+                      {t.common.perServing}
                     </span>
                   </div>
                   
@@ -985,14 +993,14 @@ export default function ScanResultPage() {
                     {/* Calorie Card with Stacked Macro Energy Distribution */}
                     <div className="flex flex-col items-center justify-center bg-[#1a3825] rounded-[4px] py-6 px-8 text-center relative overflow-hidden">
                       <span className="text-5xl font-serif text-white leading-none">{cal}</span>
-                      <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-widest mt-2 mb-4">kcal</span>
+                      <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-widest mt-2 mb-4">{t.common.kcal}</span>
 
                       {/* Stacked Energy Ratio Bar */}
                       <div className="w-full">
                         <div className="h-2 w-full bg-white/10 rounded-[3px] overflow-hidden flex">
-                          <div style={{ width: `${protPct}%` }} className="bg-[#88ba9d] h-full" title={`Protein ${protPct}%`} />
-                          <div style={{ width: `${carbPct}%` }} className="bg-[#5c8b71] h-full" title={`Carbs ${carbPct}%`} />
-                          <div style={{ width: `${fatPct}%` }} className="bg-[#c5d1c9] h-full" title={`Fat ${fatPct}%`} />
+                          <div style={{ width: `${protPct}%` }} className="bg-[#88ba9d] h-full" title={`${t.common.protein} ${protPct}%`} />
+                          <div style={{ width: `${carbPct}%` }} className="bg-[#5c8b71] h-full" title={`${t.common.carbs} ${carbPct}%`} />
+                          <div style={{ width: `${fatPct}%` }} className="bg-[#c5d1c9] h-full" title={`${t.common.fat} ${fatPct}%`} />
                         </div>
                         <div className="flex justify-between items-center mt-2 font-mono text-[9px] text-white/70">
                           <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#88ba9d]" /> {protPct}% P</span>
@@ -1005,14 +1013,14 @@ export default function ScanResultPage() {
                     {/* Macros Bars */}
                     <div className="space-y-4">
                       {[
-                        { label: 'Protein', grams: prot, calories: protCal, pct: protPct, color: 'bg-[#1a3825]' },
-                        { label: 'Carbs', grams: carb, calories: carbCal, pct: carbPct, color: 'bg-[#5c8b71]' },
-                        { label: 'Fat', grams: fat, calories: fatCal, pct: fatPct, color: 'bg-[#a4b5aa]' },
+                        { label: t.common.protein, grams: prot, calories: protCal, pct: protPct, color: 'bg-[#1a3825]' },
+                        { label: t.common.carbs, grams: carb, calories: carbCal, pct: carbPct, color: 'bg-[#5c8b71]' },
+                        { label: t.common.fat, grams: fat, calories: fatCal, pct: fatPct, color: 'bg-[#a4b5aa]' },
                       ].map(macro => (
                         <div key={macro.label} className="flex flex-col gap-1.5">
                           <div className="flex justify-between font-mono text-[10px] text-[#6b8274] tracking-wider">
                             <span>{macro.label}</span>
-                            <span className="text-[#1e4832] font-semibold">{macro.grams}G <span className="text-[#a4b5aa] font-normal">({macro.calories} kcal)</span></span>
+                            <span className="text-[#1e4832] font-semibold">{macro.grams}G <span className="text-[#a4b5aa] font-normal">({macro.calories} {t.common.kcal})</span></span>
                           </div>
                           <div className="h-1.5 w-full bg-[#e8efe9] overflow-hidden rounded-[4px]">
                             <motion.div 
@@ -1029,30 +1037,30 @@ export default function ScanResultPage() {
                     {/* Secondary Nutrients Bento (Fiber, Net Carbs, Sugar, Sodium) */}
                     <div className="grid grid-cols-2 gap-2.5 pt-4 border-t border-[#e8efe9]">
                       <div className="bg-[#f0f5f2] p-3 rounded-[4px] border border-[#e8efe9]">
-                        <span className="block font-mono text-[9px] text-[#8ba797] uppercase tracking-wider mb-0.5">Dietary Fiber</span>
+                        <span className="block font-mono text-[9px] text-[#8ba797] uppercase tracking-wider mb-0.5">{t.scanResult.dietaryFiber}</span>
                         <span className="font-serif text-[18px] text-[#1e4832] font-semibold">{fiber}g</span>
-                        <span className="block font-mono text-[8px] text-[#166534] mt-0.5">{fiber >= 4 ? 'Good source' : 'Low fiber'}</span>
+                        <span className="block font-mono text-[8px] text-[#166534] mt-0.5">{fiber >= 4 ? t.scanResult.goodSource : t.scanResult.lowFiber}</span>
                       </div>
 
                       <div className="bg-[#f0f5f2] p-3 rounded-[4px] border border-[#e8efe9]">
-                        <span className="block font-mono text-[9px] text-[#8ba797] uppercase tracking-wider mb-0.5">Net Carbs</span>
+                        <span className="block font-mono text-[9px] text-[#8ba797] uppercase tracking-wider mb-0.5">{t.scanResult.netCarbs}</span>
                         <span className="font-serif text-[18px] text-[#1e4832] font-semibold">{netCarb}g</span>
-                        <span className="block font-mono text-[8px] text-[#6b8274] mt-0.5">Digestible</span>
+                        <span className="block font-mono text-[8px] text-[#6b8274] mt-0.5">{t.scanResult.digestible}</span>
                       </div>
 
                       <div className="bg-[#f0f5f2] p-3 rounded-[4px] border border-[#e8efe9]">
-                        <span className="block font-mono text-[9px] text-[#8ba797] uppercase tracking-wider mb-0.5">Total Sugars</span>
+                        <span className="block font-mono text-[9px] text-[#8ba797] uppercase tracking-wider mb-0.5">{t.scanResult.totalSugars}</span>
                         <span className="font-serif text-[18px] text-[#1e4832] font-semibold">{sugar}g</span>
                         <span className={`block font-mono text-[8px] mt-0.5 ${sugar > 15 ? 'text-[#1e4832] font-bold' : 'text-[#6b8274]'}`}>
-                          {sugar > 15 ? 'High sugar' : sugar > 6 ? 'Moderate' : 'Low sugar'}
+                          {sugar > 15 ? t.scanResult.highSugar : sugar > 6 ? t.scanResult.moderate : t.scanResult.lowSugar}
                         </span>
                       </div>
 
                       <div className="bg-[#f0f5f2] p-3 rounded-[4px] border border-[#e8efe9]">
-                        <span className="block font-mono text-[9px] text-[#8ba797] uppercase tracking-wider mb-0.5">Sodium</span>
+                        <span className="block font-mono text-[9px] text-[#8ba797] uppercase tracking-wider mb-0.5">{t.common.sodium}</span>
                         <span className="font-serif text-[18px] text-[#1e4832] font-semibold">{sodium}mg</span>
                         <span className={`block font-mono text-[8px] mt-0.5 ${sodium > 600 ? 'text-[#1e4832] font-bold' : 'text-[#6b8274]'}`}>
-                          {sodium > 600 ? 'High sodium' : 'Moderate'}
+                          {sodium > 600 ? t.scanResult.highSodium : t.scanResult.moderate}
                         </span>
                       </div>
                     </div>
@@ -1064,7 +1072,7 @@ export default function ScanResultPage() {
             {/* Daily Impact */}
             {scanRecord.raw_ai_response && (
               <div className="bg-white rounded-[4px] border border-[#e8efe9] shadow-sm p-6 lg:p-8">
-                <h3 className="font-serif text-[24px] text-[#1e4832] mb-5">Daily Impact</h3>
+                <h3 className="font-serif text-[24px] text-[#1e4832] mb-5">{t.scanResult.dailyImpact}</h3>
                 
                 {(() => {
                   const impact = scanRecord.raw_ai_response;
@@ -1083,9 +1091,9 @@ export default function ScanResultPage() {
                       {/* Progress Bar */}
                       <div className="flex flex-col gap-2">
                         <div className="flex justify-between font-mono text-[10px] text-[#6b8274] uppercase tracking-wider">
-                          <span>{totalAfter} / {dailyTarget} kcal</span>
+                          <span>{totalAfter} / {dailyTarget} {t.common.kcal}</span>
                           <span className="text-[#1e4832] font-bold">
-                            {exceeded ? 'Over Limit' : `${remainingCals} kcal left`}
+                            {exceeded ? t.scanResult.overLimit : formatText(t.scanResult.kcalLeft, { kcal: remainingCals })}
                           </span>
                         </div>
                         <div className="h-3 w-full bg-[#e8efe9] overflow-hidden rounded-[4px] relative">
@@ -1106,11 +1114,11 @@ export default function ScanResultPage() {
                         <div className="flex gap-4 font-mono text-[9px] text-[#8ba797]">
                           <div className="flex items-center gap-1.5">
                             <div className="w-2.5 h-2.5 rounded-[2px] bg-[#8ba797]" />
-                            Before ({beforeCals} kcal)
+                            {formatText(t.scanResult.before, { kcal: beforeCals })}
                           </div>
                           <div className="flex items-center gap-1.5">
                             <div className="w-2.5 h-2.5 rounded-[2px] bg-[#1a3825]" />
-                            This Meal ({mealCals} kcal)
+                            {formatText(t.scanResult.thisMeal, { kcal: mealCals })}
                           </div>
                         </div>
                       </div>
@@ -1123,7 +1131,7 @@ export default function ScanResultPage() {
                       {/* Percentage Badge */}
                       <div className="flex justify-center mt-2">
                         <div className="inline-flex items-center justify-center text-center gap-2 px-4 py-2 rounded-[4px] font-mono text-[11px] font-bold w-full bg-[#f0f5f2] text-[#1e4832] border border-[#c5d1c9]">
-                          This meal is {Math.round(Number(impact.percentageOfDailyTarget) || 0)}% of your daily target
+                          {formatText(t.scanResult.pctOfDailyTarget, { pct: Math.round(Number(impact.percentageOfDailyTarget) || 0) })}
                         </div>
                       </div>
                     </div>

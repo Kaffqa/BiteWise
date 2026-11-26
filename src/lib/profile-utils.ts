@@ -3,17 +3,19 @@ import type { FoodAnalysisResult, UserHealthProfile } from '@/types/ai.types';
 import type { MealType } from '@/types/database.types';
 
 const ALLERGEN_SYNONYMS: Record<string, string[]> = {
-  peanuts: ['peanut', 'peanuts', 'groundnut', 'kacang tanah'],
-  'tree nuts': ['tree nut', 'tree nuts', 'almond', 'cashew', 'walnut', 'pecan', 'pistachio', 'hazelnut', 'macadamia', 'kacang mede', 'kenari'],
-  milk: ['milk', 'dairy', 'lactose', 'casein', 'whey', 'butter', 'cheese', 'cream', 'yogurt', 'susu'],
-  lactose: ['lactose', 'milk', 'dairy', 'cream', 'cheese', 'butter', 'whey', 'susu'],
-  eggs: ['egg', 'eggs', 'albumin', 'mayonnaise', 'telur'],
-  wheat: ['wheat', 'gluten', 'flour', 'bread', 'pasta', 'noodle', 'gandum', 'terigu'],
-  gluten: ['gluten', 'wheat', 'barley', 'rye', 'malt', 'gandum', 'terigu'],
-  soy: ['soy', 'soya', 'soybean', 'tofu', 'tempeh', 'edamame', 'miso', 'tamari', 'lecithin', 'kedelai', 'tahu', 'tempe', 'kecap'],
-  fish: ['fish', 'salmon', 'tuna', 'cod', 'mackerel', 'anchovy', 'sardine', 'ikan'],
-  shellfish: ['shellfish', 'crustacean', 'shrimp', 'prawn', 'crab', 'lobster', 'clam', 'mussel', 'oyster', 'scallop', 'squid', 'udang', 'kepiting', 'kerang', 'cumi'],
-  sesame: ['sesame', 'tahini', 'wijen'],
+  peanuts: ['peanut', 'peanuts', 'peanut butter', 'groundnut', 'kacang', 'kacang tanah', 'selai kacang', 'bumbu kacang', 'sambal kacang'],
+  'tree nuts': ['tree nut', 'tree nuts', 'almond', 'cashew', 'walnut', 'pecan', 'pistachio', 'hazelnut', 'macadamia', 'kacang mede', 'kacang mete', 'kacang almond', 'kenari'],
+  milk: ['milk', 'dairy', 'lactose', 'casein', 'whey', 'butter', 'cheese', 'cream', 'yogurt', 'susu', 'keju', 'mentega', 'krim', 'produk susu'],
+  lactose: ['lactose', 'milk', 'dairy', 'cream', 'cheese', 'butter', 'whey', 'susu', 'laktosa', 'keju', 'krim', 'mentega'],
+  eggs: ['egg', 'eggs', 'albumin', 'mayonnaise', 'telur', 'mayones'],
+  wheat: ['wheat', 'gluten', 'flour', 'bread', 'pasta', 'noodle', 'gandum', 'terigu', 'tepung terigu', 'roti', 'mie', 'mi goreng', 'mi ayam', 'mi instan'],
+  gluten: ['gluten', 'wheat', 'barley', 'rye', 'malt', 'gandum', 'terigu', 'tepung terigu', 'roti', 'mie', 'mi goreng', 'mi ayam', 'mi instan'],
+  soy: ['soy', 'soya', 'soybean', 'tofu', 'tempeh', 'edamame', 'miso', 'tamari', 'lecithin', 'kedelai', 'tahu', 'tempe', 'kecap', 'kecap manis'],
+  fish: ['fish', 'salmon', 'tuna', 'cod', 'mackerel', 'anchovy', 'sardine', 'ikan', 'tongkol', 'teri', 'lele', 'patin'],
+  shellfish: ['shellfish', 'crustacean', 'seafood', 'shrimp', 'prawn', 'crab', 'lobster', 'clam', 'mussel', 'oyster', 'scallop', 'squid', 'udang', 'kepiting', 'kerang', 'cumi', 'cumi-cumi', 'boga bahari'],
+  sesame: ['sesame', 'tahini', 'wijen', 'minyak wijen'],
+  mustard: ['mustard', 'sesawi', 'biji sesawi'],
+  sulfites: ['sulfite', 'sulfites', 'sulphite', 'sulfit'],
 };
 
 function matchesUserAllergen(detected: string, userTerms: string[]): boolean {

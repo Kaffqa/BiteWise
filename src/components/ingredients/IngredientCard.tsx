@@ -2,6 +2,7 @@ import React from 'react';
 import { Warning, ShieldCheck, ShieldWarning, ArrowRight } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { getEmojiForIcon } from '@/lib/emoji-map';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export type IngredientStatus = 'Safe' | 'Flagged' | 'Allergen';
 
@@ -26,27 +27,32 @@ export default function IngredientCard({
   name,
   category,
   status,
-  reason,
-  description,
+  reason: _reason,
+  description: _description,
   commonlyFoundIn,
-  timesEncountered,
-  source,
+  timesEncountered: _timesEncountered,
+  source: _source,
   onClick,
 }: IngredientCardProps) {
+  const { t } = useLanguage();
   let badgeStyle = '';
+  let badgeLabel = '';
   let BadgeIcon: any = null;
 
   switch (status) {
     case 'Safe':
       badgeStyle = 'bg-[#bbf7d0] text-[#166534] border-[#86efac]';
+      badgeLabel = t.ingredients.filters.Safe;
       BadgeIcon = ShieldCheck;
       break;
     case 'Flagged':
       badgeStyle = 'bg-[#fef3c7] text-[#92400e] border-[#fcd34d]';
+      badgeLabel = t.ingredients.filters.Flagged;
       BadgeIcon = Warning;
       break;
     case 'Allergen':
       badgeStyle = 'bg-[#fecaca] text-[#991b1b] border-[#fca5a5]';
+      badgeLabel = t.common.allergenAlert;
       BadgeIcon = ShieldWarning;
       break;
   }
@@ -63,7 +69,7 @@ export default function IngredientCard({
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-[10px] font-mono font-bold tracking-wider ${badgeStyle}`}
         >
           {BadgeIcon && <BadgeIcon size={14} weight="fill" />}
-          {status === 'Allergen' ? 'Allergen Alert' : status}
+          {badgeLabel}
         </div>
       </div>
 
@@ -75,7 +81,7 @@ export default function IngredientCard({
       <hr className="border-[#e8efe9] my-4" />
 
       <div className="mb-6 flex-grow">
-        <p className="text-[11px] font-mono text-[#5a7a68] mb-2">Commonly Found In:</p>
+        <p className="text-[11px] font-mono text-[#5a7a68] mb-2">{t.ingredients.commonlyFoundIn}</p>
         <ul className="flex flex-wrap items-center gap-y-2">
           {commonlyFoundIn.slice(0, 3).map((item, index) => (
             <React.Fragment key={index}>
@@ -95,7 +101,7 @@ export default function IngredientCard({
         onClick={onClick}
         className="w-full py-3 px-4 border border-[#cfdfd5] rounded-[4px] text-sm font-mono text-[#1e4832] flex items-center justify-center gap-2 hover:bg-[#f0f5f2] transition-colors"
       >
-        View Details <ArrowRight size={16} />
+        {t.ingredients.viewDetails} <ArrowRight size={16} />
       </button>
     </motion.div>
   );

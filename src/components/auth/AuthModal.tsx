@@ -1,20 +1,19 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import PrivacyPolicyModal from './PrivacyPolicyModal';
 import BrandLogo from '@/components/ui/BrandLogo';
 
-const authSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  privacyPolicy: z.boolean().optional(),
-});
-
-type AuthFormValues = z.infer<typeof authSchema>;
+interface AuthFormValues {
+  email: string;
+  password: string;
+  privacyPolicy?: boolean;
+}
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -22,13 +21,34 @@ interface AuthModalProps {
   defaultView?: 'login' | 'signup';
 }
 
+function mapSupabaseAuthError(message: string | undefined, fallback: string, t: ReturnType<typeof useLanguage>['t']): string {
+  if (!message) return fallback;
+  const lower = message.toLowerCase();
+  if (lower.includes('invalid login credentials')) return t.auth.errors.invalidCredentials;
+  if (lower.includes('email not confirmed')) return t.auth.errors.emailNotConfirmed;
+  if (lower.includes('already registered')) return t.auth.errors.userAlreadyExists;
+  if (lower.includes('at least 6')) return t.auth.errors.weakPassword;
+  return message;
+}
+
 export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: AuthModalProps) {
   const { signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [view, setView] = useState<'login' | 'signup'>(defaultView);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isPrivacyModalOpen, setPrivacyModalOpen] = useState(false);
+
+  const authSchema = useMemo(
+    () =>
+      z.object({
+        email: z.string().email(t.auth.invalidEmail),
+        password: z.string().min(6, t.auth.passwordMin),
+        privacyPolicy: z.boolean().optional(),
+      }),
+    [t.auth.invalidEmail, t.auth.passwordMin]
+  );
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setError: setFormError } = useForm<AuthFormValues>({
     resolver: zodResolver(authSchema)
@@ -52,7 +72,7 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
       setSuccess(null);
       
       if (view === 'signup' && !data.privacyPolicy) {
-        setFormError('privacyPolicy', { type: 'manual', message: 'You must agree to the Privacy Policy' });
+        setFormError('privacyPolicy', { type: 'manual', message: t.auth.mustAgreePrivacy });
         return;
       }
 
@@ -65,7 +85,7 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
       } else {
         const response = await signUpWithEmail(cleanEmail, data.password);
         if (response?.user && !response?.session) {
-          setSuccess('Registration successful! Please check your email to confirm your account.');
+          setSuccess(t.auth.registrationSuccess);
           // Do not close or redirect yet, let them read the message
         } else {
           onClose();
@@ -73,7 +93,8 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
         }
       }
     } catch (err: any) {
-      setError(err.message || `Failed to ${view === 'login' ? 'sign in' : 'sign up'}`);
+      const fallback = view === 'login' ? t.auth.failedSignIn : t.auth.failedSignUp;
+      setError(mapSupabaseAuthError(err?.message, fallback, t));
     }
   };
 
@@ -84,7 +105,7 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
       onClose();
       navigate('/app');
     } catch (err: any) {
-      setError(err.message || 'Failed to authenticate with Google');
+      setError(mapSupabaseAuthError(err?.message, t.auth.failedGoogle, t));
     }
   };
 
@@ -119,6 +140,7 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
           {/* Close Button */}
           <button 
             onClick={onClose}
+            aria-label={t.common.close}
             className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-[#163323]/5 hover:bg-[#163323]/10 text-[#163323]/60 transition-colors z-10"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -140,14 +162,14 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
                 onClick={() => setView('login')}
                 className={`relative z-10 w-28 py-[7px] text-[12px] uppercase tracking-wider font-mono font-bold transition-colors duration-300 ${view === 'login' ? 'text-[#163323]' : 'text-[#163323]/40 hover:text-[#163323]/70'}`}
               >
-                Sign In
+                {t.auth.signIn}
               </button>
               <button 
                 type="button"
                 onClick={() => setView('signup')}
                 className={`relative z-10 w-28 py-[7px] text-[12px] uppercase tracking-wider font-mono font-bold transition-colors duration-300 ${view === 'signup' ? 'text-[#163323]' : 'text-[#163323]/40 hover:text-[#163323]/70'}`}
               >
-                Sign Up
+                {t.auth.signUp}
               </button>
             </div>
 
@@ -161,12 +183,12 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
                 className="flex flex-col items-center"
               >
                 <h2 className="text-[34px] font-serif text-[#163323] tracking-tight leading-none">
-                  {view === 'login' ? 'Welcome Back' : 'Join BiteWise'}
+                  {view === 'login' ? t.auth.welcomeBack : t.auth.joinBiteWise}
                 </h2>
                 <p className="text-[#163323]/60 font-mono text-[13px] mt-3">
                   {view === 'login' 
-                    ? 'Sign in to access your food journal.' 
-                    : 'Start tracking your meals with absolute confidence.'}
+                    ? t.auth.signInSubtitle 
+                    : t.auth.signUpSubtitle}
                 </p>
               </motion.div>
             </AnimatePresence>
@@ -209,7 +231,7 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
                 <input 
                   {...register('email')} 
                   type="email" 
-                  placeholder="Email Address" 
+                  placeholder={t.auth.emailPlaceholder} 
                   className="w-full px-4 py-3.5 rounded-xl bg-white border border-[#163323]/10 text-[#163323] placeholder-[#163323]/40 font-mono text-[14px] focus:outline-none focus:ring-2 focus:ring-[#5c8263]/30 focus:border-[#5c8263] transition-all"
                 />
                 <AnimatePresence>
@@ -225,7 +247,7 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
                 <input 
                   {...register('password')} 
                   type="password" 
-                  placeholder="Password" 
+                  placeholder={t.auth.passwordPlaceholder} 
                   className="w-full px-4 py-3.5 rounded-xl bg-white border border-[#163323]/10 text-[#163323] placeholder-[#163323]/40 font-mono text-[14px] focus:outline-none focus:ring-2 focus:ring-[#5c8263]/30 focus:border-[#5c8263] transition-all"
                 />
                 <AnimatePresence>
@@ -247,13 +269,13 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
                       className="w-3.5 h-3.5 rounded border-[#163323]/20 text-[#5c8263] focus:ring-[#5c8263] accent-[#5c8263] cursor-pointer shrink-0"
                     />
                     <span className="text-[12px] font-mono text-[#163323]/60 leading-none pt-[1.5px]">
-                      I have read and agree to the{' '}
+                      {t.auth.agreePrefix}{' '}
                       <button 
                         type="button" 
                         onClick={(e) => { e.preventDefault(); setPrivacyModalOpen(true); }} 
                         className="text-[#5c8263] underline font-bold hover:text-[#2a4e35] transition-colors"
                       >
-                        Privacy Policy
+                        {t.auth.privacyPolicy}
                       </button>
                     </span>
                   </label>
@@ -272,7 +294,7 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
                 disabled={isSubmitting}
                 className="w-full mt-2 bg-gradient-to-b from-[#5c8263] to-[#2a4e35] hover:from-[#4e7255] hover:to-[#21422b] text-white px-8 py-[13px] rounded-full text-[13.5px] font-mono shadow-[inset_0_0_0_1.5px_rgba(255,255,255,0.45),_0_6px_12px_rgba(22,51,35,0.25)] border-[2.5px] border-[#1a3825] transition-all flex items-center justify-center font-bold tracking-wide disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Processing...' : (
+                {isSubmitting ? t.common.processing : (
                   <AnimatePresence mode="wait">
                     <motion.span
                       key={view}
@@ -281,7 +303,7 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
                       exit={{ opacity: 0, filter: 'blur(2px)', x: 5 }}
                       transition={{ duration: 0.2 }}
                     >
-                      {view === 'login' ? 'Sign In' : 'Create Free Account'}
+                      {view === 'login' ? t.auth.signIn : t.auth.createFreeAccount}
                     </motion.span>
                   </AnimatePresence>
                 )}
@@ -290,7 +312,7 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
 
             <div className="mt-8 mb-6 flex items-center w-full">
               <div className="flex-1 h-px bg-[#163323]/10"></div>
-              <span className="px-4 text-[11px] uppercase tracking-wider font-mono text-[#163323]/30">or</span>
+              <span className="px-4 text-[11px] uppercase tracking-wider font-mono text-[#163323]/30">{t.auth.or}</span>
               <div className="flex-1 h-px bg-[#163323]/10"></div>
             </div>
 
@@ -305,18 +327,18 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'signup' }: A
                 <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                 <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
               </svg>
-              Continue with Google
+              {t.auth.continueGoogle}
             </button>
 
             {view === 'login' && (
               <p className="text-center text-[11px] font-mono text-[#163323]/50 mt-6 leading-relaxed">
-                By logging in, you agree to our{' '}
+                {t.auth.loginPrivacyPrefix}{' '}
                 <button 
                   type="button" 
                   onClick={() => setPrivacyModalOpen(true)} 
                   className="text-[#5c8263] underline font-bold hover:text-[#2a4e35] transition-colors"
                 >
-                  Privacy Policy
+                  {t.auth.privacyPolicy}
                 </button>
               </p>
             )}

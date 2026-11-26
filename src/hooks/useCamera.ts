@@ -1,5 +1,6 @@
 import { useState, useEffect, RefObject, useCallback, useRef } from 'react';
 import { getCameraStream, stopCameraStream, captureFrameFromVideo } from '@/lib/image-utils';
+import { getDictionary } from '@/i18n';
 
 type FacingMode = 'user' | 'environment';
 
@@ -34,14 +35,14 @@ export function useCamera() {
       setStream(newStream);
       setIsActive(true);
     } catch (err: any) {
-      setError(err.message || 'Could not start camera');
+      setError(err.message || getDictionary().errors.couldNotStartCamera);
       setIsActive(false);
     }
   }, [facingMode]);
 
   const capturePhoto = useCallback(async (videoRef: RefObject<HTMLVideoElement>): Promise<Blob> => {
     if (!videoRef.current || !streamRef.current) {
-      throw new Error('Camera not ready');
+      throw new Error(getDictionary().errors.cameraNotReady);
     }
     return captureFrameFromVideo(videoRef.current);
   }, []);

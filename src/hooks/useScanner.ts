@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useNutrition } from '@/contexts/NutritionContext';
 import { useIngredients } from '@/hooks/useIngredients';
 import { compressImage, uploadScanImage, deleteScanImage, fileToBase64 } from '@/lib/storage';
@@ -19,6 +20,7 @@ const VALID_SCAN_TYPES: ScanType[] = ['meal_photo', 'nutrition_label', 'ingredie
  */
 export function useScanner() {
   const { user, profile } = useAuth();
+  const { t, formatText } = useLanguage();
   const { addMealLog } = useNutrition();
   const { syncFromScan } = useIngredients();
 
@@ -31,7 +33,7 @@ export function useScanner() {
    */
   const processScan = async (imageFile: File | Blob) => {
     if (!user || !profile) {
-      setError('User not authenticated or profile missing');
+      setError(t.scanner.errors.notAuthenticated);
       setScanState('error');
       return;
     }
@@ -171,7 +173,7 @@ export function useScanner() {
         );
       }
 
-      // 9. Create notifications
+      // 9. Create notifications in the active user language
       try {
         const newNotifs = [];
 
@@ -179,16 +181,16 @@ export function useScanner() {
           newNotifs.push({
             user_id: user.id,
             type: 'alert',
-            title: 'Allergen Alert!',
-            message: `We detected severe allergens in ${analysisResult.mealTitle} that contradict your profile. Do not consume!`,
+            title: t.notifications.allergenTitle,
+            message: formatText(t.notifications.allergenMsg, { meal: analysisResult.mealTitle }),
             is_read: false,
           });
         } else if (analysisResult.safetyStatus === 'caution') {
           newNotifs.push({
             user_id: user.id,
             type: 'alert',
-            title: 'Caution Flagged',
-            message: `We found flagged ingredients in ${analysisResult.mealTitle} that you might want to review.`,
+            title: t.notifications.cautionTitle,
+            message: formatText(t.notifications.cautionMsg, { meal: analysisResult.mealTitle }),
             is_read: false,
           });
         }
@@ -197,8 +199,11 @@ export function useScanner() {
           newNotifs.push({
             user_id: user.id,
             type: 'info',
-            title: 'Calorie Limit Warning',
-            message: `Eating ${analysisResult.mealTitle} will put you over your daily limit by ${Math.round(Math.abs(analysisResult.dailyImpact.caloriesRemaining || 0))} kcal!`,
+            title: t.notifications.calorieTitle,
+            message: formatText(t.notifications.calorieMsg, {
+              meal: analysisResult.mealTitle,
+              kcal: Math.round(Math.abs(analysisResult.dailyImpact.caloriesRemaining || 0)),
+            }),
             is_read: false,
           });
         }
@@ -209,8 +214,11 @@ export function useScanner() {
             newNotifs.push({
               user_id: user.id,
               type: 'alert',
-              title: 'Critical Drug Interaction!',
-              message: `Interaction detected between ${severeInteraction.interactingIngredient} and ${severeInteraction.medication}! Review recommendations before consuming.`,
+              title: t.notifications.drugTitle,
+              message: formatText(t.notifications.drugMsg, {
+                ingredient: severeInteraction.interactingIngredient,
+                medication: severeInteraction.medication,
+              }),
               is_read: false,
             });
           }
@@ -233,12 +241,11 @@ export function useScanner() {
 
       console.error('Scan error:', err);
 
-      let friendlyError = 'An unexpected error occurred while scanning the image.';
+      let friendlyError = t.scanner.errors.unexpected;
       const rawError = err?.message || '';
 
       if (rawError === 'NOT_FOOD') {
-        friendlyError =
-          "Oops! This doesn't look like food or drink. Please take a photo of an actual meal for analysis.";
+        friendlyError = t.scanner.errors.notFood;
       } else if (
         rawError.includes('503') ||
         rawError.includes('UNAVAILABLE') ||
@@ -246,16 +253,15 @@ export function useScanner() {
         rawError.includes('500') ||
         rawError.includes('429')
       ) {
-        friendlyError =
-          'The AI system is experiencing high demand. Backup providers were attempted but also failed. Please wait a moment and try again.';
-      } else if (rawError.includes('timed out')) {
-        friendlyError = 'AI analysis took too long. Please check your connection and try again.';
+        friendlyError = t.scanner.errors.highDemand;
+      } else if (rawError.includes('timed out') || rawError.includes('35')) {
+        friendlyError = t.scanner.errors.timeout;
       } else if (rawError.includes('fetch') || rawError.includes('network')) {
-        friendlyError = 'Internet connection lost. Please check your network and try again.';
+        friendlyError = t.scanner.errors.network;
       } else if (rawError.includes('API key') || rawError.includes('configured')) {
-        friendlyError = 'System is not configured correctly (Missing server API key).';
+        friendlyError = t.scanner.errors.missingApiKey;
       } else {
-        friendlyError = `Failed to analyze image: ${rawError}`;
+        friendlyError = formatText(t.scanner.errors.failedAnalyze, { reason: rawError });
       }
 
       setError(friendlyError);

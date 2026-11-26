@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Clock } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface CustomTimePickerProps {
   value: string; // "HH:mm"
@@ -8,6 +9,7 @@ interface CustomTimePickerProps {
 }
 
 export function CustomTimePicker({ value, onChange }: CustomTimePickerProps) {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -99,7 +101,7 @@ export function CustomTimePicker({ value, onChange }: CustomTimePickerProps) {
               className="flex-1 overflow-y-auto pb-4 pr-1 scrollbar-hide"
               style={{ scrollBehavior: 'smooth', msOverflowStyle: 'none', scrollbarWidth: 'none' }}
             >
-              <div className="font-mono text-[10px] text-[#8ba797] font-bold text-center mb-1 sticky top-0 bg-white py-1.5 z-10">HR</div>
+              <div className="font-mono text-[10px] text-[#8ba797] font-bold text-center mb-1 sticky top-0 bg-white py-1.5 z-10">{t.common.hourShort}</div>
               {hours.map(h => {
                 const isActive = selectedHour === h;
                 return (
@@ -127,7 +129,7 @@ export function CustomTimePicker({ value, onChange }: CustomTimePickerProps) {
               className="flex-1 overflow-y-auto pb-4 pl-1 scrollbar-hide"
               style={{ scrollBehavior: 'smooth', msOverflowStyle: 'none', scrollbarWidth: 'none' }}
             >
-              <div className="font-mono text-[10px] text-[#8ba797] font-bold text-center mb-1 sticky top-0 bg-white py-1.5 z-10">MIN</div>
+              <div className="font-mono text-[10px] text-[#8ba797] font-bold text-center mb-1 sticky top-0 bg-white py-1.5 z-10">{t.common.minShort}</div>
               {minutes.map(m => {
                 const isActive = selectedMin === m;
                 return (

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Loader2 } from 'lucide-react';
 
 /**
@@ -8,6 +9,7 @@ import { Loader2 } from 'lucide-react';
  */
 export function ProtectedRoute() {
   const { user, profile, loading } = useAuth();
+  const { t } = useLanguage();
   const location = useLocation();
 
   if (loading) {
@@ -15,7 +17,7 @@ export function ProtectedRoute() {
       <div className="min-h-screen bg-[#f7f9f8] flex flex-col items-center justify-center">
         <Loader2 className="w-10 h-10 text-[#1a3825] animate-spin mb-4" />
         <h1 className="text-2xl font-serif text-[#1e4832]">BiteWise</h1>
-        <p className="font-mono text-[12px] text-[#8ba797] mt-2">Loading your profile...</p>
+        <p className="font-mono text-[12px] text-[#8ba797] mt-2">{t.authGuard.loadingProfile}</p>
       </div>
     );
   }

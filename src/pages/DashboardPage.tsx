@@ -1,12 +1,12 @@
 import React from 'react';
 import { useProfile } from '@/hooks/useProfile';
 import { useNutrition } from '@/contexts/NutritionContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useScanHistory } from '@/hooks/useScanHistory';
 import { motion } from 'framer-motion';
-import { ScanLine, Loader2 } from 'lucide-react';
 import { Scan as PhosphorScan, ShieldCheck, ShieldWarning, Warning, Lightning } from '@phosphor-icons/react';
 import { Link, useNavigate } from 'react-router-dom';
-import { format, formatDistanceToNow, startOfDay, endOfDay, subDays } from 'date-fns';
+import { format, startOfDay, endOfDay, subDays } from 'date-fns';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,28 +44,41 @@ const AppleEmoji = ({ emoji, className = "w-4 h-4" }: { emoji: string, className
   );
 };
 
-function getGreeting(name: string): string {
+function getGreeting(name: string, t: ReturnType<typeof useLanguage>['t'], formatText: ReturnType<typeof useLanguage>['formatText']): string {
   const hour = new Date().getHours();
   
-  if (hour >= 0 && hour < 5) return `Late Night Cravings, ${name}?`;
-  if (hour >= 5 && hour < 11) return `Good Morning, ${name}`;
-  if (hour >= 11 && hour < 15) return `Time for Lunch, ${name}`;
-  if (hour >= 15 && hour < 18) return `Good Afternoon, ${name}`;
-  if (hour >= 18 && hour < 21) return `Ready for Dinner, ${name}?`;
-  return `Winding Down, ${name}`;
+  if (hour >= 0 && hour < 5) return formatText(t.dashboard.greetings.lateNight, { name });
+  if (hour >= 5 && hour < 11) return formatText(t.dashboard.greetings.morning, { name });
+  if (hour >= 11 && hour < 15) return formatText(t.dashboard.greetings.lunch, { name });
+  if (hour >= 15 && hour < 18) return formatText(t.dashboard.greetings.afternoon, { name });
+  if (hour >= 18 && hour < 21) return formatText(t.dashboard.greetings.dinner, { name });
+  return formatText(t.dashboard.greetings.evening, { name });
 }
 
-function getSmartTip(consumed: number, target: number, flagCount: number): string {
-  if (consumed === 0) return "You haven't logged any meals yet today. Start by scanning your first meal!";
+function getSmartTip(
+  consumed: number,
+  target: number,
+  flagCount: number,
+  t: ReturnType<typeof useLanguage>['t'],
+  formatText: ReturnType<typeof useLanguage>['formatText']
+): string {
+  if (consumed === 0) return t.dashboard.tips.noMeals;
   const pct = consumed / target;
-  if (flagCount > 0) return `On track so far. Keep going, but remember to review ${flagCount} flagged ingredient${flagCount > 1 ? 's' : ''} in your daily log.`;
-  if (pct < 0.3) return "You're just getting started today. Remember to eat balanced meals throughout the day.";
-  if (pct < 0.7) return "Great progress! You're on track with your nutrition goals for the day.";
-  if (pct <= 1.0) return "Almost at your daily target. Be mindful of what you eat next.";
-  return "You've exceeded your daily calorie target. Consider lighter options for the rest of the day.";
+  if (flagCount > 0) {
+    return flagCount === 1
+      ? t.dashboard.tips.flaggedOne
+      : formatText(t.dashboard.tips.flaggedMany, { count: flagCount });
+  }
+  if (pct < 0.3) return t.dashboard.tips.early;
+  if (pct < 0.7) return t.dashboard.tips.onTrack;
+  if (pct <= 1.0) return t.dashboard.tips.almost;
+  return t.dashboard.tips.over;
 }
 
 const DailySummaryCard = ({ profile, todaySummary, loading }: any) => {
+  const navigate = useNavigate();
+  const { t, formatText } = useLanguage();
+
   if (loading) {
     return (
       <div className="bg-white rounded-[4px] border border-[#e8efe9] p-6 lg:p-8 flex flex-col shadow-sm">
@@ -96,9 +109,8 @@ const DailySummaryCard = ({ profile, todaySummary, loading }: any) => {
     );
   }
 
-  const navigate = useNavigate();
   const dateStr = format(new Date(), 'dd - MM - yyyy');
-  const firstName = profile?.full_name?.split(' ')[0] || 'User';
+  const firstName = profile?.full_name?.split(' ')[0] || t.dashboard.userFallback;
 
   const targetCalories = Math.round(Number(profile?.target_calories) || 2000);
   const consumed = Math.round(Number(todaySummary?.total_calories) || 0);
@@ -142,7 +154,7 @@ const DailySummaryCard = ({ profile, todaySummary, loading }: any) => {
   }
 
   const flagCount = todaySummary?.scan_count ? Math.max(0, (todaySummary?.scan_count || 0) - (todaySummary?.meal_count || 0)) : 0;
-  const tip = getSmartTip(consumed, targetCalories, flagCount);
+  const tip = getSmartTip(consumed, targetCalories, flagCount, t, formatText);
 
   return (
     <div className="bg-white rounded-[4px] border border-[#e8efe9] p-6 lg:p-8 shadow-sm flex flex-col">
@@ -151,7 +163,7 @@ const DailySummaryCard = ({ profile, todaySummary, loading }: any) => {
           <div className="md:hidden font-mono text-[11px] font-bold text-[#6b8274] tracking-widest uppercase mb-4">
             {dateStr}
           </div>
-          <h2 className="text-[32px] md:text-3xl font-serif text-[#1e4832] leading-tight">{getGreeting(firstName)}</h2>
+          <h2 className="text-[32px] md:text-3xl font-serif text-[#1e4832] leading-tight">{getGreeting(firstName, t, formatText)}</h2>
           <p className="font-mono text-[12px] md:text-[13px] text-[#6b8274] mt-4 md:mt-3 max-w-sm leading-relaxed">
             {tip}
           </p>
@@ -197,7 +209,7 @@ const DailySummaryCard = ({ profile, todaySummary, loading }: any) => {
               {isOverLimit ? `+${overBy}` : remaining}
             </span>
             <span className={`text-[10px] font-mono uppercase tracking-wider mt-2 ${isOverLimit ? 'text-[#991b1b]' : 'text-[#8ba797]'}`}>
-              {isOverLimit ? 'Over Limit' : 'Remaining'}
+              {isOverLimit ? t.dashboard.overLimit : t.dashboard.remaining}
             </span>
           </div>
         </div>
@@ -207,13 +219,13 @@ const DailySummaryCard = ({ profile, todaySummary, loading }: any) => {
           <div className="flex items-center gap-2 mb-6 text-[#1e4832] font-normal">
             <Lightning size={22} weight="fill" style={{ fill: 'url(#lightning-grad)' }} className="mr-1 -mt-0.5" />
             <span className="font-serif text-[18px] md:text-[17px]">{consumed}</span> 
-            <span className="font-mono text-xs">of {targetCalories} kcal consumed</span>
+            <span className="font-mono text-xs">{formatText(t.dashboard.consumedOf, { target: targetCalories })}</span>
           </div>
           
           <div className="space-y-5">
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between font-mono text-[10px] text-[#6b8274] tracking-wider">
-                <span>Protein</span>
+                <span>{t.common.protein}</span>
                 <span className="text-[#a4b5aa]">{Math.round(protein)}/{Math.round(targetProtein)}G</span>
               </div>
               <div className="h-1 w-full bg-[#e8efe9] overflow-hidden">
@@ -223,7 +235,7 @@ const DailySummaryCard = ({ profile, todaySummary, loading }: any) => {
             
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between font-mono text-[10px] text-[#6b8274] tracking-wider">
-                <span>Carbs</span>
+                <span>{t.common.carbs}</span>
                 <span className="text-[#a4b5aa]">{Math.round(carbs)}/{Math.round(targetCarbs)}G</span>
               </div>
               <div className="h-1 w-full bg-[#e8efe9] overflow-hidden">
@@ -233,7 +245,7 @@ const DailySummaryCard = ({ profile, todaySummary, loading }: any) => {
 
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between font-mono text-[10px] text-[#6b8274] tracking-wider">
-                <span>Fat</span>
+                <span>{t.common.fat}</span>
                 <span className="text-[#a4b5aa]">{Math.round(fat)}/{Math.round(targetFat)}G</span>
               </div>
               <div className="h-1 w-full bg-[#e8efe9] overflow-hidden">
@@ -248,7 +260,7 @@ const DailySummaryCard = ({ profile, todaySummary, loading }: any) => {
         onClick={() => navigate('/app/history')} 
         className="w-full py-3.5 mt-auto rounded-[4px] border border-[#c5d1c9] text-[#1e4832] font-mono text-[13px] hover:bg-[#f0f5f2] transition-colors"
       >
-        See Daily Journal
+        {t.dashboard.seeDailyJournal}
       </button>
     </div>
   );
@@ -256,33 +268,27 @@ const DailySummaryCard = ({ profile, todaySummary, loading }: any) => {
 
 const RecentScansCard = ({ scans, loading }: { scans: any[], loading: boolean }) => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const safetyConfig: Record<string, { bg: string; text: string; label: string; icon: any }> = {
-    safe: { bg: 'bg-[#bbf7d0]', text: 'text-[#166534]', label: 'Safe', icon: ShieldCheck },
-    caution: { bg: 'bg-[#fef3c7]', text: 'text-[#92400e]', label: 'Flagged', icon: Warning },
-    danger: { bg: 'bg-[#fecaca]', text: 'text-[#991b1b]', label: 'Allergen Alert', icon: ShieldWarning },
-    unknown: { bg: 'bg-[#e8efe9]', text: 'text-[#6b8274]', label: 'Unknown', icon: ShieldCheck },
-  };
-
-  const mealEmoji: Record<string, string> = {
-    breakfast: '☕',
-    lunch: '🍱',
-    dinner: '🍽️',
-    snack: '🍫',
+    safe: { bg: 'bg-[#bbf7d0]', text: 'text-[#166534]', label: t.common.safe, icon: ShieldCheck },
+    caution: { bg: 'bg-[#fef3c7]', text: 'text-[#92400e]', label: t.common.flagged, icon: Warning },
+    danger: { bg: 'bg-[#fecaca]', text: 'text-[#991b1b]', label: t.common.allergenAlert, icon: ShieldWarning },
+    unknown: { bg: 'bg-[#e8efe9]', text: 'text-[#6b8274]', label: t.common.unknown, icon: ShieldCheck },
   };
 
   function guessEmoji(title: string): string {
-    const t = (title || '').toLowerCase();
-    if (t.includes('coffee') || t.includes('latte') || t.includes('tea')) return '☕';
-    if (t.includes('rice') || t.includes('nasi')) return '🍚';
-    if (t.includes('bread') || t.includes('roti')) return '🍞';
-    if (t.includes('chicken') || t.includes('ayam')) return '🍗';
-    if (t.includes('salad')) return '🥗';
-    if (t.includes('soup') || t.includes('soto')) return '🍲';
-    if (t.includes('noodle') || t.includes('mie')) return '🍜';
-    if (t.includes('burger')) return '🍔';
-    if (t.includes('pizza')) return '🍕';
-    if (t.includes('fruit') || t.includes('buah')) return '🍎';
+    const str = (title || '').toLowerCase();
+    if (str.includes('coffee') || str.includes('latte') || str.includes('tea') || str.includes('kopi')) return '☕';
+    if (str.includes('rice') || str.includes('nasi')) return '🍚';
+    if (str.includes('bread') || str.includes('roti')) return '🍞';
+    if (str.includes('chicken') || str.includes('ayam')) return '🍗';
+    if (str.includes('salad')) return '🥗';
+    if (str.includes('soup') || str.includes('soto')) return '🍲';
+    if (str.includes('noodle') || str.includes('mie')) return '🍜';
+    if (str.includes('burger')) return '🍔';
+    if (str.includes('pizza')) return '🍕';
+    if (str.includes('fruit') || str.includes('buah')) return '🍎';
     return '🍽️';
   }
 
@@ -290,11 +296,11 @@ const RecentScansCard = ({ scans, loading }: { scans: any[], loading: boolean })
     <div className="bg-white rounded-[4px] border border-[#e8efe9] p-6 lg:p-8 flex flex-col shadow-sm">
       <div className="flex justify-between items-end mb-6 border-b border-[#e8efe9] pb-4">
         <div>
-          <h2 className="text-[20px] font-serif text-[#1e4832] mb-1">Recent Scans</h2>
-          <p className="font-mono text-[11px] text-[#8ba797]">Your latest food analysis</p>
+          <h2 className="text-[20px] font-serif text-[#1e4832] mb-1">{t.dashboard.recentScans}</h2>
+          <p className="font-mono text-[11px] text-[#8ba797]">{t.dashboard.latestAnalysis}</p>
         </div>
         <Link to="/app/history" className="font-mono text-[11px] text-[#1e4832] font-semibold hover:underline mb-1">
-          View Full Log
+          {t.dashboard.viewFullLog}
         </Link>
       </div>
 
@@ -316,8 +322,8 @@ const RecentScansCard = ({ scans, loading }: { scans: any[], loading: boolean })
           <div className="w-14 h-14 rounded-full bg-[#f0f5f2] flex items-center justify-center mb-4">
             <PhosphorScan className="w-6 h-6 text-[#8ba797]" />
           </div>
-          <p className="font-serif text-[15px] text-[#1e4832] mb-1">No scans yet</p>
-          <p className="font-mono text-[11px] text-[#8ba797]">Your recent scans will appear here</p>
+          <p className="font-serif text-[15px] text-[#1e4832] mb-1">{t.dashboard.noScansYet}</p>
+          <p className="font-mono text-[11px] text-[#8ba797]">{t.dashboard.recentScansHint}</p>
         </div>
       ) : (
         <div className="flex flex-col">
@@ -343,11 +349,11 @@ const RecentScansCard = ({ scans, loading }: { scans: any[], loading: boolean })
                     )}
                   </div>
                   <div>
-                    <div className="font-serif text-[#1e4832] mb-1 text-[15px]">{scan.meal_title || 'Unknown Meal'}</div>
+                    <div className="font-serif text-[#1e4832] mb-1 text-[15px]">{scan.meal_title || t.dashboard.unknownMeal}</div>
                     <div className="font-mono text-[10px] text-[#8ba797] flex gap-3">
                       <span>{timeStr}</span>
-                      <span>{Math.round(Number(scan.total_calories) || 0)} kcal</span>
-                      {scan.total_protein_g ? <span>{Math.round(Number(scan.total_protein_g))}g Protein</span> : null}
+                      <span>{Math.round(Number(scan.total_calories) || 0)} {t.common.kcal}</span>
+                      {scan.total_protein_g ? <span>{Math.round(Number(scan.total_protein_g))}{t.dashboard.proteinSuffix}</span> : null}
                     </div>
                   </div>
                 </div>
@@ -365,7 +371,7 @@ const RecentScansCard = ({ scans, loading }: { scans: any[], loading: boolean })
 };
 
 const ScannerActionCard = ({ scanCount, flagCount, streakDays, loading }: { scanCount: number, flagCount: number, streakDays: number, loading?: boolean }) => {
-  const navigate = useNavigate();
+  const { t } = useLanguage();
 
   if (loading) {
     return (
@@ -395,29 +401,29 @@ const ScannerActionCard = ({ scanCount, flagCount, streakDays, loading }: { scan
   return (
     <div className="bg-[#1a3825] rounded-[4px] p-6 lg:p-8 shadow-md flex flex-col justify-between">
       <div>
-        <h2 className="text-3xl font-serif text-white mb-4">Scan Before You Eat</h2>
+        <h2 className="text-3xl font-serif text-white mb-4">{t.dashboard.scanBeforeEat}</h2>
         <p className="font-mono text-[13px] text-[#a4b5aa] leading-relaxed mb-8">
-          Point your camera at a label or plate. BiteWise checks it against your allergy and diet profile.
+          {t.dashboard.scannerDesc}
         </p>
       </div>
 
       <Link to="/app/scan" className="hidden md:flex w-full py-4 mb-8 rounded-[4px] bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#c0d4c8] text-white font-mono text-[13px] items-center justify-center gap-2 hover:brightness-110 hover:-translate-y-0.5 active:scale-95 active:translate-y-0 hover:shadow-[0_8px_16px_rgba(0,0,0,0.2)] transition-all duration-200 shadow-md">
         <PhosphorScan size={18} weight="fill" />
-        Open Scanner
+        {t.dashboard.openScanner}
       </Link>
 
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-[#122b1e] rounded-[4px] py-4 flex flex-col items-center justify-center border border-[#1a3825]">
           <span className="text-3xl font-serif text-white mb-1">{scanCount}</span>
-          <span className="text-[10px] font-mono text-[#6b8274] uppercase tracking-widest">Scans</span>
+          <span className="text-[10px] font-mono text-[#6b8274] uppercase tracking-widest">{t.dashboard.scans}</span>
         </div>
         <div className="bg-[#122b1e] rounded-[4px] py-4 flex flex-col items-center justify-center border border-[#1a3825]">
           <span className="text-3xl font-serif text-white mb-1">{flagCount}</span>
-          <span className="text-[10px] font-mono text-[#6b8274] uppercase tracking-widest">Flags</span>
+          <span className="text-[10px] font-mono text-[#6b8274] uppercase tracking-widest">{t.dashboard.flags}</span>
         </div>
         <div className="bg-[#122b1e] rounded-[4px] py-4 flex flex-col items-center justify-center border border-[#1a3825]">
-          <span className="text-3xl font-serif text-white mb-1">{streakDays}D</span>
-          <span className="text-[10px] font-mono text-[#6b8274] uppercase tracking-widest">Streak</span>
+          <span className="text-3xl font-serif text-white mb-1">{streakDays}{t.dashboard.dayShort}</span>
+          <span className="text-[10px] font-mono text-[#6b8274] uppercase tracking-widest">{t.dashboard.streak}</span>
         </div>
       </div>
     </div>
@@ -426,6 +432,7 @@ const ScannerActionCard = ({ scanCount, flagCount, streakDays, loading }: { scan
 
 const IngredientOfDayWidget = ({ user, profile }: { user: any, profile: any }) => {
   const navigate = useNavigate();
+  const { t, tDomain } = useLanguage();
   const [ingredient, setIngredient] = React.useState<any | null>(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -433,7 +440,7 @@ const IngredientOfDayWidget = ({ user, profile }: { user: any, profile: any }) =
     async function fetchRandomIngredient() {
       if (!user) return;
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('user_ingredients')
           .select('*')
           .eq('user_id', user.id)
@@ -479,15 +486,15 @@ const IngredientOfDayWidget = ({ user, profile }: { user: any, profile: any }) =
   if (!ingredient) {
     return (
       <div className="bg-white rounded-[4px] border border-[#e8efe9] p-6 lg:p-8 shadow-sm flex flex-col flex-1 items-center justify-center text-center">
-        <h2 className="text-[20px] font-serif text-[#1e4832] mb-2">Build Your Dictionary</h2>
+        <h2 className="text-[20px] font-serif text-[#1e4832] mb-2">{t.dashboard.buildDictionary}</h2>
         <p className="font-mono text-[12px] text-[#6b8274] mb-6 leading-relaxed">
-          Start scanning foods or generate your dictionary to see your daily ingredients here.
+          {t.dashboard.buildDictionaryDesc}
         </p>
         <button 
           onClick={() => navigate('/app/ingredients')}
           className="px-8 py-3 rounded-[4px] bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#c0d4c8] text-white font-mono text-[13px] flex items-center justify-center hover:brightness-110 hover:-translate-y-0.5 active:scale-95 active:translate-y-0 hover:shadow-[0_8px_16px_rgba(0,0,0,0.2)] transition-all duration-200 shadow-md"
         >
-          Go to Dictionary
+          {t.dashboard.goToDictionary}
         </button>
       </div>
     );
@@ -504,14 +511,14 @@ const IngredientOfDayWidget = ({ user, profile }: { user: any, profile: any }) =
       else if (pref.toLowerCase().includes('vegetarian')) icon = '🥗';
       else if (pref.toLowerCase().includes('halal')) icon = '🕌';
       else if (pref.toLowerCase().includes('keto')) icon = '🥑';
-      dietaryTags.push({ icon, label: pref });
+      dietaryTags.push({ icon, label: tDomain('tags', pref) });
     });
   }
 
   // Highlight conflicting medical conditions if it's flagged
   if (ingredient.status !== 'Safe' && profile?.medical_conditions) {
     profile.medical_conditions.forEach((cond: string) => {
-      dietaryTags.push({ icon: '⚠️', label: cond });
+      dietaryTags.push({ icon: '⚠️', label: tDomain('tags', cond) });
     });
   }
 
@@ -521,17 +528,17 @@ const IngredientOfDayWidget = ({ user, profile }: { user: any, profile: any }) =
         <div className="text-4xl mt-1 leading-none">{badgeIcon}</div>
         <div>
           <h2 className="text-[26px] font-serif text-[#1e4832] leading-tight">{ingredient.ingredient_name}</h2>
-          <p className="font-mono text-[12px] text-[#a0b0a6] mt-1">Ingredient of the day</p>
+          <p className="font-mono text-[12px] text-[#a0b0a6] mt-1">{t.dashboard.ingredientOfDay}</p>
         </div>
       </div>
 
       <p className="font-mono text-[13px] text-[#4a6b58] leading-relaxed mb-6">
-        {ingredient.description || ingredient.reason || 'No specific description available for this ingredient.'}
+        {ingredient.description || ingredient.reason || t.dashboard.noIngredientDesc}
       </p>
 
       {ingredient.commonly_found_in && ingredient.commonly_found_in.length > 0 && (
         <div className="mb-2">
-          <h3 className="font-mono text-[12px] text-[#4a6b58] mb-3">Commonly Found In:</h3>
+          <h3 className="font-mono text-[12px] text-[#4a6b58] mb-3">{t.dashboard.commonlyFoundIn}</h3>
           <div className="flex flex-wrap items-center gap-2.5 font-mono text-[12px] text-[#5a7a68] font-medium">
             {ingredient.commonly_found_in.slice(0, 3).map((item: any, i: number, arr: any[]) => (
               <React.Fragment key={i}>
@@ -549,7 +556,7 @@ const IngredientOfDayWidget = ({ user, profile }: { user: any, profile: any }) =
       <hr className="border-[#e8efe9] my-6" />
 
       <div className="mb-8">
-        <h3 className="font-mono text-[12px] text-[#4a6b58] mb-3">Dietary Status:</h3>
+        <h3 className="font-mono text-[12px] text-[#4a6b58] mb-3">{t.dashboard.dietaryStatus}</h3>
         <div className="flex flex-wrap items-center gap-2.5 font-mono text-[12px] font-medium">
           {dietaryTags.length > 0 ? (
             dietaryTags.map((item, i, arr) => (
@@ -562,7 +569,7 @@ const IngredientOfDayWidget = ({ user, profile }: { user: any, profile: any }) =
               </React.Fragment>
             ))
           ) : (
-            <span className="text-[#a0b0a6]">No specific dietary preferences set.</span>
+            <span className="text-[#a0b0a6]">{t.dashboard.noDietaryPrefs}</span>
           )}
         </div>
       </div>
@@ -572,7 +579,7 @@ const IngredientOfDayWidget = ({ user, profile }: { user: any, profile: any }) =
           onClick={() => navigate('/app/ingredients')}
           className="w-full py-3.5 rounded-[4px] border border-[#cfdfd5] text-[#5a7a68] font-mono text-[13px] hover:bg-[#f0f5f2] transition-colors"
         >
-          Learn More in Dictionary
+          {t.dashboard.learnMoreDictionary}
         </button>
       </div>
     </div>

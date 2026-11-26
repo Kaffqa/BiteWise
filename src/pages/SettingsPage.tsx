@@ -1,23 +1,21 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/lib/supabase';
 import { deleteAllUserScanImages } from '@/lib/storage';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { LanguageSettingsCard } from '@/components/ui/LanguageSwitcher';
 import { LogOut, User, Ruler, Weight as WeightIcon, Calendar, Activity, Target as TargetIcon, Zap, Flame, ShieldAlert, Heart, Utensils, Edit3, Trash2, Pill, AlertTriangle, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { differenceInYears, parseISO } from 'date-fns';
 import EditSettingsModal from '@/components/settings/EditSettingsModal';
 
-function snakeToTitle(str: string) {
-  if (!str) return 'Not set';
-  return str.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-}
-
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { t, tDomain } = useLanguage();
   const { profile, loading, updateProfile } = useProfile();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -57,7 +55,7 @@ export default function SettingsPage() {
   if (!profile) {
     return (
       <div className="p-6 text-center text-[#8ba797] font-mono">
-        Profile not found
+        {t.settings.profileNotFound}
       </div>
     );
   }
@@ -68,8 +66,10 @@ export default function SettingsPage() {
     await updateProfile(data);
   };
 
+  const isDeleteWordValid = ['DELETE', 'HAPUS'].includes(deleteConfirmInput.trim().toUpperCase());
+
   const handleDeleteAllData = async () => {
-    if (!user || deleteConfirmInput.trim().toUpperCase() !== 'DELETE') return;
+    if (!user || !isDeleteWordValid) return;
     setIsDeletingData(true);
     setDeleteError(null);
     try {
@@ -123,7 +123,7 @@ export default function SettingsPage() {
       navigate('/', { replace: true });
     } catch (err: any) {
       console.error('Failed to delete account data:', err);
-      setDeleteError(err?.message || 'Failed to delete your data. Please try again.');
+      setDeleteError(err?.message || t.settings.deleteModal.failedDelete);
       setIsDeletingData(false);
     }
   };
@@ -135,12 +135,12 @@ export default function SettingsPage() {
       className="max-w-6xl mx-auto px-4 py-8 pb-24 bg-[#f7f9f8] min-h-screen"
     >
       <div className="flex items-center justify-between mb-6">
-        <h1 className="font-serif text-3xl text-[#1e4832]">Settings</h1>
+        <h1 className="font-serif text-3xl text-[#1e4832]">{t.settings.title}</h1>
         <button 
           onClick={() => setIsEditModalOpen(true)}
           className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#c0d4c8] rounded-[4px] text-white font-mono text-[11px] hover:brightness-110 transition-all shadow-md active:scale-95"
         >
-          <Edit3 size={14} /> Edit Profile
+          <Edit3 size={14} /> {t.settings.editProfile}
         </button>
       </div>
 
@@ -157,90 +157,93 @@ export default function SettingsPage() {
               <User className="w-10 h-10 text-[#8ba797]" />
             )}
           </div>
-          <h2 className="font-serif text-2xl text-[#1e4832] leading-tight mb-1 relative z-10">{profile.full_name || 'Anonymous'}</h2>
+          <h2 className="font-serif text-2xl text-[#1e4832] leading-tight mb-1 relative z-10">{profile.full_name || t.common.anonymous}</h2>
           <p className="font-mono text-[11px] text-[#8ba797] relative z-10 break-all">{profile.email}</p>
         </div>
 
         {/* Row 1 Right: Body Metrics */}
         <div className="lg:col-span-2 bg-white rounded-[4px] border border-[#e8efe9] p-6 lg:p-8 shadow-sm">
-          <h3 className="font-serif text-[#1e4832] text-xl mb-6">Body Metrics</h3>
+          <h3 className="font-serif text-[#1e4832] text-xl mb-6">{t.settings.bodyMetrics}</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-y-8 gap-x-6">
-            <MetricItem icon={<Ruler size={16} />} label="Height" value={profile.height_cm ? `${profile.height_cm} cm` : 'Not set'} />
-            <MetricItem icon={<WeightIcon size={16} />} label="Weight" value={profile.weight_kg ? `${profile.weight_kg} kg` : 'Not set'} />
-            <MetricItem icon={<Calendar size={16} />} label="Age" value={age !== null ? `${age} yrs` : 'Not set'} />
-            <MetricItem icon={<User size={16} />} label="Gender" value={profile.gender ? profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1) : 'Not set'} />
-            <MetricItem icon={<Activity size={16} />} label="Activity" value={snakeToTitle(profile.activity_level)} />
-            <MetricItem icon={<TargetIcon size={16} />} label="Goal" value={snakeToTitle(profile.goal)} />
+            <MetricItem icon={<Ruler size={16} />} label={t.settings.height} value={profile.height_cm ? `${profile.height_cm} cm` : t.common.notSet} />
+            <MetricItem icon={<WeightIcon size={16} />} label={t.settings.weight} value={profile.weight_kg ? `${profile.weight_kg} kg` : t.common.notSet} />
+            <MetricItem icon={<Calendar size={16} />} label={t.settings.age} value={age !== null ? `${age} ${t.common.yrs}` : t.common.notSet} />
+            <MetricItem icon={<User size={16} />} label={t.settings.gender} value={profile.gender ? tDomain('gender', profile.gender) : t.common.notSet} />
+            <MetricItem icon={<Activity size={16} />} label={t.settings.activity} value={tDomain('activityLevel', profile.activity_level)} />
+            <MetricItem icon={<TargetIcon size={16} />} label={t.settings.goal} value={tDomain('goal', profile.goal)} />
           </div>
         </div>
 
-        {/* Row 2 Left: Dietary Profile Card */}
+        {/* Row 2 Full Width: Language Preferences Card */}
+        <LanguageSettingsCard />
+
+        {/* Row 3 Left: Dietary Profile Card */}
         <div className="lg:col-span-1 bg-white rounded-[4px] border border-[#e8efe9] p-6 shadow-sm flex flex-col space-y-6">
-          <h3 className="font-serif text-[#1e4832] text-xl">Dietary Profile</h3>
+          <h3 className="font-serif text-[#1e4832] text-xl">{t.settings.dietaryProfile}</h3>
           
           <div className="space-y-5 flex-1">
             <div>
               <h4 className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                <ShieldAlert size={12} /> Allergies
+                <ShieldAlert size={12} /> {t.settings.allergies}
               </h4>
-              <TagList tags={profile.allergies} />
+              <TagList tags={profile.allergies} emptyText={t.common.noneSpecified} translateTag={(val) => tDomain('tags', val)} />
             </div>
 
             <div>
               <h4 className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                <AlertTriangle size={12} /> Intolerances
+                <AlertTriangle size={12} /> {t.settings.intolerances}
               </h4>
-              <TagList tags={profile.intolerances} />
+              <TagList tags={profile.intolerances} emptyText={t.common.noneSpecified} translateTag={(val) => tDomain('tags', val)} />
             </div>
 
             <div>
               <h4 className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                <Heart size={12} /> Medical Conditions
+                <Heart size={12} /> {t.settings.medicalConditions}
               </h4>
-              <TagList tags={profile.medical_conditions} />
+              <TagList tags={profile.medical_conditions} emptyText={t.common.noneSpecified} translateTag={(val) => tDomain('tags', val)} />
             </div>
 
             <div>
               <h4 className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                <Utensils size={12} /> Dietary Preferences
+                <Utensils size={12} /> {t.settings.dietaryPreferences}
               </h4>
-              <TagList tags={profile.dietary_preferences} />
+              <TagList tags={profile.dietary_preferences} emptyText={t.common.noneSpecified} translateTag={(val) => tDomain('tags', val)} />
             </div>
 
             <div>
               <h4 className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                <Pill size={12} /> Active Medications
+                <Pill size={12} /> {t.settings.activeMedications}
               </h4>
-              <TagList tags={profile.medications} />
+              <TagList tags={profile.medications} emptyText={t.common.noneSpecified} translateTag={(val) => tDomain('tags', val)} />
             </div>
           </div>
         </div>
 
-        {/* Row 2 Right: Nutrition Targets */}
+        {/* Row 3 Right: Nutrition Targets */}
         <div className="lg:col-span-2 bg-white rounded-[4px] border border-[#e8efe9] p-6 lg:p-8 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Left side of Nutrition: Energy */}
           <div className="space-y-5 flex flex-col justify-between">
             <div>
               <div className="flex flex-col gap-1 mb-4">
-                <h3 className="font-serif text-[#1e4832] text-xl">Energy Targets</h3>
-                <p className="font-mono text-[10px] text-[#8ba797]">Calculated automatically</p>
+                <h3 className="font-serif text-[#1e4832] text-xl">{t.settings.energyTargets}</h3>
+                <p className="font-mono text-[10px] text-[#8ba797]">{t.settings.calculatedAuto}</p>
               </div>
               
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="bg-[#f0f5f2] p-4 rounded-[4px] flex flex-col justify-center">
-                  <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mb-1 flex items-center gap-1"><Zap size={10} /> BMR</span>
-                  <span className="font-serif text-xl text-[#1e4832] leading-none">{profile.calculated_bmr ? Math.round(Number(profile.calculated_bmr)) : '-'} <span className="text-[10px] font-mono text-[#8ba797]">kcal</span></span>
+                  <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mb-1 flex items-center gap-1"><Zap size={10} /> {t.settings.bmr}</span>
+                  <span className="font-serif text-xl text-[#1e4832] leading-none">{profile.calculated_bmr ? Math.round(Number(profile.calculated_bmr)) : '-'} <span className="text-[10px] font-mono text-[#8ba797]">{t.common.kcal}</span></span>
                 </div>
                 <div className="bg-[#f0f5f2] p-4 rounded-[4px] flex flex-col justify-center">
-                  <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mb-1 flex items-center gap-1"><Flame size={10} /> TDEE</span>
-                  <span className="font-serif text-xl text-[#1e4832] leading-none">{profile.calculated_tdee ? Math.round(Number(profile.calculated_tdee)) : '-'} <span className="text-[10px] font-mono text-[#8ba797]">kcal</span></span>
+                  <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mb-1 flex items-center gap-1"><Flame size={10} /> {t.settings.tdee}</span>
+                  <span className="font-serif text-xl text-[#1e4832] leading-none">{profile.calculated_tdee ? Math.round(Number(profile.calculated_tdee)) : '-'} <span className="text-[10px] font-mono text-[#8ba797]">{t.common.kcal}</span></span>
                 </div>
               </div>
             </div>
 
             <div className="pt-2">
               <div className="flex justify-between items-end mb-2">
-                <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider">Daily Calorie Target</span>
+                <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider">{t.settings.dailyCalorieTarget}</span>
                 <span className="font-serif text-2xl text-[#1e4832] leading-none">{profile.target_calories ? Math.round(Number(profile.target_calories)) : '-'}</span>
               </div>
               <div className="h-2 w-full bg-[#1a3825] rounded-[4px] overflow-hidden shadow-inner" />
@@ -250,35 +253,35 @@ export default function SettingsPage() {
           {/* Right side of Nutrition: Macros */}
           <div className="space-y-4 md:border-l md:border-[#e8efe9] md:pl-8 flex flex-col justify-between">
             <div>
-              <h4 className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mb-1">Macronutrients Split</h4>
-              <MacroBar label="Protein" value={profile.target_protein_g} percentage={30} color="bg-[#5c8b71]" />
-              <MacroBar label="Carbs" value={profile.target_carbs_g} percentage={40} color="bg-[#8ba797]" />
-              <MacroBar label="Fat" value={profile.target_fat_g} percentage={30} color="bg-[#a4b5aa]" />
+              <h4 className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wider mb-1">{t.settings.macronutrientsSplit}</h4>
+              <MacroBar label={t.common.protein} value={profile.target_protein_g} percentage={30} color="bg-[#5c8b71]" />
+              <MacroBar label={t.common.carbs} value={profile.target_carbs_g} percentage={40} color="bg-[#8ba797]" />
+              <MacroBar label={t.common.fat} value={profile.target_fat_g} percentage={30} color="bg-[#a4b5aa]" />
             </div>
             
             <div className="grid grid-cols-3 gap-2 pt-3 mt-3 border-t border-[#e8efe9]">
               <div className="text-center">
-                <span className="block font-mono text-[9px] text-[#8ba797] uppercase">Fiber</span>
+                <span className="block font-mono text-[9px] text-[#8ba797] uppercase">{t.settings.fiber}</span>
                 <span className="font-mono text-[11px] font-bold text-[#1e4832]">{profile.target_fiber_g ? Math.round(Number(profile.target_fiber_g)) : '-'}g</span>
               </div>
               <div className="text-center border-l border-r border-[#e8efe9]">
-                <span className="block font-mono text-[9px] text-[#8ba797] uppercase">Sugar Max</span>
+                <span className="block font-mono text-[9px] text-[#8ba797] uppercase">{t.settings.sugarMax}</span>
                 <span className="font-mono text-[11px] font-bold text-[#1e4832]">{profile.target_sugar_g ? Math.round(Number(profile.target_sugar_g)) : '-'}g</span>
               </div>
               <div className="text-center">
-                <span className="block font-mono text-[9px] text-[#8ba797] uppercase">Sodium Max</span>
+                <span className="block font-mono text-[9px] text-[#8ba797] uppercase">{t.settings.sodiumMax}</span>
                 <span className="font-mono text-[11px] font-bold text-[#1e4832]">{profile.target_sodium_mg ? Math.round(Number(profile.target_sodium_mg)) : '-'}mg</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Row 3 Full Width: Account Management */}
+        {/* Row 4 Full Width: Account Management */}
         <div className="lg:col-span-3 bg-[#fef2f2] rounded-[4px] border border-[#fecaca] p-6 lg:p-8 flex flex-col sm:flex-row justify-between items-center gap-6 mt-2">
           <div className="flex-1">
-            <h3 className="font-serif text-[#991b1b] text-xl mb-1">Account Management</h3>
+            <h3 className="font-serif text-[#991b1b] text-xl mb-1">{t.settings.accountManagement}</h3>
             <p className="font-mono text-[10px] text-[#991b1b]/70 leading-relaxed max-w-sm">
-              Signed in as <strong>{profile.email}</strong>. Deleting your account will permanently remove all data.
+              {t.settings.signedInAs} <strong>{profile.email}</strong>. {t.settings.deleteWarning}
             </p>
           </div>
           
@@ -288,7 +291,7 @@ export default function SettingsPage() {
               className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-[4px] bg-white border border-[#fecaca] text-[#991b1b] font-mono text-[11px] hover:bg-[#fee2e2] transition-colors shadow-sm"
             >
               <LogOut size={14} />
-              Sign Out
+              {t.settings.signOut}
             </button>
             <button
               onClick={() => {
@@ -299,7 +302,7 @@ export default function SettingsPage() {
               className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-[4px] bg-[#991b1b] text-white font-mono text-[11px] hover:bg-[#7f1d1d] transition-colors shadow-sm"
             >
               <Trash2 size={14} />
-              Delete Data
+              {t.settings.deleteData}
             </button>
           </div>
         </div>
@@ -317,22 +320,25 @@ export default function SettingsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm">
           <div className="bg-white border border-[#fecaca] rounded-[4px] shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif text-2xl text-[#991b1b]">Delete All Data</h3>
+              <h3 className="font-serif text-2xl text-[#991b1b]">{t.settings.deleteModal.title}</h3>
               <button
                 onClick={() => !isDeletingData && setIsDeleteModalOpen(false)}
+                aria-label={t.common.close}
                 className="p-1.5 rounded-[4px] text-[#8ba797] hover:bg-[#f0f5f2]"
               >
                 <X size={18} />
               </button>
             </div>
             <p className="font-mono text-[11px] text-[#5a7a68] leading-relaxed mb-4">
-              This will permanently remove all your scan photos, food history, meal logs, ingredient dictionary, notifications, and dietary preferences. Type <strong className="text-[#991b1b]">DELETE</strong> to confirm.
+              {t.settings.deleteModal.descPrefix}{' '}
+              <strong className="text-[#991b1b]">{t.settings.deleteModal.keyword}</strong>{' '}
+              {t.settings.deleteModal.descSuffix}
             </p>
             <input
               type="text"
               value={deleteConfirmInput}
               onChange={(e) => setDeleteConfirmInput(e.target.value)}
-              placeholder="Type DELETE"
+              placeholder={t.settings.deleteModal.placeholder}
               className="w-full px-3 py-2 mb-4 border border-[#c5d1c9] rounded-[4px] font-mono text-sm text-[#1e4832] focus:outline-none focus:border-[#991b1b]"
             />
             {deleteError && (
@@ -345,15 +351,15 @@ export default function SettingsPage() {
                 onClick={() => setIsDeleteModalOpen(false)}
                 className="px-4 py-2 rounded-[4px] border border-[#c5d1c9] font-mono text-xs text-[#6b8274] hover:bg-[#f0f5f2]"
               >
-                Cancel
+                {t.common.cancel}
               </button>
               <button
                 type="button"
-                disabled={isDeletingData || deleteConfirmInput.trim().toUpperCase() !== 'DELETE'}
+                disabled={isDeletingData || !isDeleteWordValid}
                 onClick={handleDeleteAllData}
                 className="px-4 py-2 rounded-[4px] bg-[#991b1b] text-white font-mono text-xs font-bold hover:bg-[#7f1d1d] disabled:opacity-40"
               >
-                {isDeletingData ? 'Deleting...' : 'Permanently Delete'}
+                {isDeletingData ? t.common.deleting : t.settings.deleteModal.confirmBtn}
               </button>
             </div>
           </div>
@@ -399,16 +405,24 @@ function MacroBar({ label, value, percentage, color }: { label: string, value: n
   );
 }
 
-function TagList({ tags }: { tags: string[] | null | undefined }) {
+function TagList({
+  tags,
+  emptyText,
+  translateTag,
+}: {
+  tags: string[] | null | undefined;
+  emptyText: string;
+  translateTag: (val: string) => string;
+}) {
   if (!tags || tags.length === 0) {
-    return <p className="font-mono text-[10px] text-[#a4b5aa] italic bg-[#f0f5f2] px-3 py-1.5 rounded-[4px] inline-block border border-[#e8efe9]">None specified</p>;
+    return <p className="font-mono text-[10px] text-[#a4b5aa] italic bg-[#f0f5f2] px-3 py-1.5 rounded-[4px] inline-block border border-[#e8efe9]">{emptyText}</p>;
   }
 
   return (
     <div className="flex flex-wrap gap-1.5">
       {tags.map((tag, i) => (
         <span key={i} className="px-2.5 py-1 rounded-[4px] bg-[#f0f5f2] text-[#1e4832] font-mono text-[10px] border border-[#e8efe9]">
-          {tag}
+          {translateTag(tag)}
         </span>
       ))}
     </div>

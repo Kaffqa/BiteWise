@@ -1,6 +1,7 @@
 import type { AIProvider, ConsumedToday, FoodAnalysisResult, UserHealthProfile } from '@/types/ai.types';
 import { supabase } from '@/lib/supabase';
 import { validateAndNormalizeFoodAnalysis } from '@/lib/ai-schema';
+import { getActiveLanguage, getDictionary, interpolate } from '@/i18n';
 
 const CLIENT_TIMEOUT_MS = 35_000;
 
@@ -12,11 +13,13 @@ export class ProxyProvider implements AIProvider {
   name = 'server-proxy';
 
   private async postAction<T>(action: string, payload: Record<string, unknown>): Promise<T> {
+    const t = getDictionary();
+    const language = getActiveLanguage();
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData.session?.access_token;
 
     if (!accessToken) {
-      throw new Error('Authentication required before calling AI analysis.');
+      throw new Error(t.errors.authRequired);
     }
 
     const controller = new AbortController();
@@ -29,7 +32,7 @@ export class ProxyProvider implements AIProvider {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ action, ...payload }),
+        body: JSON.stringify({ action, language, ...payload }),
         signal: controller.signal,
       });
 
@@ -37,18 +40,23 @@ export class ProxyProvider implements AIProvider {
       if (!contentType.includes('application/json')) {
         const preview = await response.text().catch(() => '');
         const cleanPreview = preview.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
-        throw new Error(`AI proxy returned non-JSON (${response.status}): ${cleanPreview || response.statusText}`);
+        throw new Error(
+          interpolate(t.errors.nonJsonProxy, {
+            status: response.status,
+            preview: cleanPreview || response.statusText,
+          })
+        );
       }
 
       const json = await response.json();
       if (!response.ok) {
-        throw new Error(json?.error || `AI request failed (${response.status})`);
+        throw new Error(json?.error || interpolate(t.errors.aiFailed, { status: response.status }));
       }
 
       return json.data as T;
     } catch (err: any) {
       if (err?.name === 'AbortError') {
-        throw new Error('AI analysis timed out after 35s. Please try again.');
+        throw new Error(t.errors.aiTimedOut);
       }
       throw err;
     } finally {

@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { getActiveLanguage } from '@/i18n';
 
 /**
  * Merges Tailwind CSS classes with proper conflict resolution.
@@ -13,7 +14,8 @@ export function cn(...inputs: ClassValue[]) {
  * Formats a number with commas and optional decimal places.
  */
 export function formatNumber(value: number, decimals: number = 0): string {
-  return value.toLocaleString('en-US', {
+  const locale = getActiveLanguage() === 'id' ? 'id-ID' : 'en-US';
+  return value.toLocaleString(locale, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
@@ -50,6 +52,7 @@ export function snakeToTitle(str: string): string {
  * Returns a relative time string (e.g., "2 hours ago", "just now").
  */
 export function getRelativeTime(date: Date | string): string {
+  const isId = getActiveLanguage() === 'id';
   const now = new Date();
   const past = typeof date === 'string' ? new Date(date) : date;
   const diffMs = now.getTime() - past.getTime();
@@ -57,9 +60,9 @@ export function getRelativeTime(date: Date | string): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (diffMins < 1) return isId ? 'Baru saja' : 'Just now';
+  if (diffMins < 60) return isId ? `${diffMins} mnt lalu` : `${diffMins}m ago`;
+  if (diffHours < 24) return isId ? `${diffHours} jam lalu` : `${diffHours}h ago`;
+  if (diffDays < 7) return isId ? `${diffDays} hari lalu` : `${diffDays}d ago`;
+  return past.toLocaleDateString(isId ? 'id-ID' : 'en-US', { month: 'short', day: 'numeric' });
 }

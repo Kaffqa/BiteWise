@@ -1,3 +1,5 @@
+export type PromptLanguage = 'en' | 'id';
+
 export interface PromptUserHealthProfile {
   allergies: string[];
   intolerances: string[];
@@ -15,12 +17,27 @@ export interface PromptConsumedToday {
   sugarG: number;
 }
 
+function buildFoodOutputLanguageDirective(language: PromptLanguage = 'en'): string {
+  if (language === 'id') {
+    return `
+LANGUAGE REQUIREMENT (CRITICAL):
+- The user selected Indonesian (Bahasa Indonesia). Write ALL descriptive/readable text fields in clear, natural Indonesian:
+  "mealTitle", "healthWarnings[].message", "items[].name", "items[].portionDescription", "ingredientExplanations[].term", "ingredientExplanations[].explanation", "dailyImpact.summary", "smartAlternatives[].originalItem", "smartAlternatives[].alternativeName", "smartAlternatives[].reason", "smartAlternatives[].tags", "drugInteractions[].interactingIngredient", "drugInteractions[].mechanism", "drugInteractions[].recommendation", "glycemicAnalysis.tipToReduceSpike", and "recommendations[]".
+- NEVER translate enum keys or schema property names! Keep "scanType", "safetyStatus", "healthWarnings[].type", "healthWarnings[].severity", "items[].safetyStatus", "smartAlternatives[].safetyStatus", "drugInteractions[].severity", and "glycemicAnalysis.spikeLevel" strictly in their exact required English enum values.`;
+  }
+
+  return `
+LANGUAGE REQUIREMENT:
+- Write all descriptive/readable text fields in clear, natural English while strictly preserving the exact English enum values.`;
+}
+
 /**
  * Builds the system prompt for food image analysis based on user's health profile.
  */
 export function buildSystemPrompt(
   profile: PromptUserHealthProfile,
-  consumedToday?: PromptConsumedToday
+  consumedToday?: PromptConsumedToday,
+  language: PromptLanguage = 'en'
 ): string {
   const allergies = profile.allergies?.length ? profile.allergies.join(', ') : 'None specified';
   const intolerances = profile.intolerances?.length ? profile.intolerances.join(', ') : 'None specified';
@@ -92,12 +109,14 @@ Safety Classification Rules:
 - Medium: Potential trace amounts or moderate contradiction to diet/conditions, OR exceeding daily nutrition limits.
 - Low: General dietary recommendations or minor notes.
 - Safe: No known issues for the user.
+${buildFoodOutputLanguageDirective(language)}
 `;
 }
 
 export function buildTextSystemPrompt(
   profile: PromptUserHealthProfile,
-  consumedToday?: PromptConsumedToday
+  consumedToday?: PromptConsumedToday,
+  language: PromptLanguage = 'en'
 ): string {
   const allergies = profile.allergies?.length ? profile.allergies.join(', ') : 'None specified';
   const intolerances = profile.intolerances?.length ? profile.intolerances.join(', ') : 'None specified';
@@ -148,11 +167,14 @@ Safety Classification Rules:
 - Medium: Potential trace amounts or moderate contradiction to diet/conditions.
 - Low: General dietary recommendations or minor notes.
 - Safe: No known issues for the user.
+${buildFoodOutputLanguageDirective(language)}
 `;
 }
 
-export function buildUserPrompt(): string {
-  return 'Analyze this food image. Identify all food items, estimate nutrition, and check for safety concerns based on my health profile.';
+export function buildUserPrompt(language: PromptLanguage = 'en'): string {
+  return language === 'id'
+    ? 'Analisis gambar makanan ini. Identifikasi semua komponen makanan, perkirakan nutrisinya, dan periksa keamanan berdasarkan profil kesehatan saya (jawab semua teks deskriptif dalam Bahasa Indonesia, pertahankan enum dalam Bahasa Inggris).'
+    : 'Analyze this food image. Identify all food items, estimate nutrition, and check for safety concerns based on my health profile.';
 }
 
 export const FOOD_ANALYSIS_SCHEMA = {
@@ -309,11 +331,19 @@ export const FOOD_ANALYSIS_SCHEMA = {
   required: ['scanType', 'mealTitle', 'safetyStatus', 'healthWarnings', 'items', 'totalNutrition', 'dailyImpact'],
 };
 
-export function buildIngredientsSystemPrompt(profile: PromptUserHealthProfile): string {
+export function buildIngredientsSystemPrompt(
+  profile: PromptUserHealthProfile,
+  language: PromptLanguage = 'en'
+): string {
   const allergies = profile.allergies?.length ? profile.allergies.join(', ') : 'None specified';
   const intolerances = profile.intolerances?.length ? profile.intolerances.join(', ') : 'None specified';
   const conditions = profile.medicalConditions?.length ? profile.medicalConditions.join(', ') : 'None specified';
   const diet = profile.dietaryPreferences?.length ? profile.dietaryPreferences.join(', ') : 'None specified';
+
+  const langRule =
+    language === 'id'
+      ? `11. LANGUAGE REQUIREMENT (CRITICAL): Write "ingredientName", "category", "reason", "description", and "commonlyFoundIn[].label" in clear, natural Indonesian (Bahasa Indonesia). Keep "status" STRICTLY as one of the exact English enum values: "Safe", "Flagged", or "Allergen".`
+      : `11. LANGUAGE REQUIREMENT: Write all descriptive fields in clear, natural English while keeping "status" strictly as "Safe", "Flagged", or "Allergen".`;
 
   return `You are an expert nutritionist and food scientist. Generate a personalized list of food ingredients/additives that are specifically relevant to this user's health profile.
 
@@ -334,7 +364,45 @@ Instructions:
 8. The 'description' MUST be comprehensive and educational (at least 2-3 full sentences). Explain what it is, how it is made, and its effects.
 9. For 'commonlyFoundIn', the 'icon' field MUST be exactly ONE single Unicode emoji character (e.g., 🥜, 🍪, 🥣). Do not use text for the icon.
 10. You MUST return ONLY valid JSON matching the exact schema provided. Do not include markdown formatting or extra text.
+${langRule}
 `;
+}
+
+export function buildEnrichIngredientsPrompt(
+  ingredientNames: string[],
+  userProfile: PromptUserHealthProfile,
+  language: PromptLanguage = 'en',
+  wrapResultsObject: boolean = false
+): string {
+  const outputInstruction = wrapResultsObject
+    ? `Return ONLY the JSON object like this: { "results": [ ...array items... ] }`
+    : `Return ONLY the raw JSON array. Do not use markdown blocks.`;
+
+  const langInstruction =
+    language === 'id'
+      ? `Write "category", "reason", "description", and "commonlyFoundIn[].label" in natural Indonesian (Bahasa Indonesia). Keep "ingredientName" matching the input item name.`
+      : `Write all fields in natural English. Keep "ingredientName" matching the input item name.`;
+
+  return `You are a nutrition expert. I have a list of food items or ingredients: ${JSON.stringify(ingredientNames)}.
+For each item, provide detailed information.
+The user's health profile:
+Allergies: ${userProfile.allergies?.join(', ') || 'None'}
+Medical Conditions: ${userProfile.medicalConditions?.join(', ') || 'None'}
+Active Medications: ${userProfile.medications?.join(', ') || 'None'}
+
+Return a JSON array of objects with the exact following schema for each item:
+{
+  "ingredientName": "exact name from my list",
+  "category": "e.g., Protein, Additive, Vegetable",
+  "reason": "Why this is safe/flagged/allergen specifically for this user's profile (max 2 sentences)",
+  "description": "Comprehensive educational description explaining what it is and its health effects (2-3 sentences).",
+  "commonlyFoundIn": [
+    {"icon": "ONE SINGLE EMOJI", "label": "food name"}
+  ]
+}
+
+${langInstruction}
+${outputInstruction}`;
 }
 
 export const INGREDIENTS_GENERATION_SCHEMA = {

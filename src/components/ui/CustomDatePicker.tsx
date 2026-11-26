@@ -5,6 +5,7 @@ import {
 } from 'date-fns';
 import { CalendarDots, CaretDown, CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface CustomDatePickerProps {
   selectedDate: Date;
@@ -13,6 +14,7 @@ interface CustomDatePickerProps {
 }
 
 export function CustomDatePicker({ selectedDate, onChange, dateLabel = '' }: CustomDatePickerProps) {
+  const { t, dateLocale } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(selectedDate);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -37,7 +39,7 @@ export function CustomDatePicker({ selectedDate, onChange, dateLabel = '' }: Cus
   const endDate = endOfWeek(monthEnd);
   
   const days = eachDayOfInterval({ start: startDate, end: endDate });
-  const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  const weekDays = t.history.datePicker.weekDays;
 
   const handlePreviousMonth = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -62,7 +64,7 @@ export function CustomDatePicker({ selectedDate, onChange, dateLabel = '' }: Cus
       >
         <CalendarDots size={18} className="text-[#1a3825]" weight="bold" />
         <span className="font-mono text-[12px] text-[#1e4832] tracking-wide whitespace-nowrap">
-          {dateLabel}{format(selectedDate, 'MMMM dd, yyyy')}
+          {dateLabel}{format(selectedDate, t.history.datePicker.dateFormat, { locale: dateLocale })}
         </span>
         <CaretDown size={14} className="text-[#6b8274]" weight="bold" />
       </button>
@@ -84,7 +86,7 @@ export function CustomDatePicker({ selectedDate, onChange, dateLabel = '' }: Cus
                 <CaretLeft size={16} weight="bold" />
               </button>
               <h4 className="font-serif text-[15px] text-[#1e4832]">
-                {format(currentMonth, 'MMMM yyyy')}
+                {format(currentMonth, t.history.datePicker.monthFormat, { locale: dateLocale })}
               </h4>
               <button 
                 onClick={handleNextMonth}
@@ -134,13 +136,13 @@ export function CustomDatePicker({ selectedDate, onChange, dateLabel = '' }: Cus
                 }}
                 className="text-[11px] font-mono text-[#5a8069] hover:text-[#1a3825] transition-colors px-2 py-1 -ml-2 rounded-[4px] hover:bg-[#f0f5f2]"
               >
-                Today
+                {t.history.datePicker.today}
               </button>
               <button 
                 onClick={() => setIsOpen(false)}
                 className="text-[11px] font-mono text-[#8ba797] hover:text-[#1a3825] transition-colors px-2 py-1 -mr-2 rounded-[4px] hover:bg-[#f0f5f2]"
               >
-                Close
+                {t.history.datePicker.close}
               </button>
             </div>
           </motion.div>

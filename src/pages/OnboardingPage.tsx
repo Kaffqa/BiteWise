@@ -3,39 +3,43 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/lib/supabase';
 import { generatePersonalIngredients } from '@/lib/ai-provider';
 import { toUserHealthProfile } from '@/lib/profile-utils';
 import { OnboardingData } from '@/types/common.types';
 import { Ruler, Utensils, ShieldAlert, Target as TargetIcon } from 'lucide-react';
 
-// GenderToggle container
-const GenderToggle = ({ value, onChange }: any) => (
-  <div className="flex bg-[#122b1e] p-1.5 w-full max-w-sm mx-auto shadow-inner rounded-[2px] gap-1 relative">
-    {['Male', 'Female', 'Other'].map(gender => {
-      const isActive = value === gender.toLowerCase();
-      return (
-        <button
-          key={gender}
-          type="button"
-          onClick={() => onChange(gender.toLowerCase())}
-          className={`relative flex-1 py-2 text-sm font-medium rounded-[1px] transition-all flex items-center justify-center ${
-            isActive ? 'text-white' : 'text-[#8ba797] hover:text-white hover:bg-white/5'
-          }`}
-        >
-          {isActive && (
-            <motion.div
-              layoutId="genderHighlight"
-              className="absolute inset-0 bg-gradient-to-b from-[#88ba9d] to-[#173d26] shadow-sm border border-[#c0d4c8] rounded-[1px]"
-              transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
-            />
-          )}
-          <span className="relative z-10">{gender}</span>
-        </button>
-      );
-    })}
-  </div>
-);
+// GenderToggle container (keeps canonical enum keys 'male'|'female'|'other' while localizing UI label)
+const GenderToggle = ({ value, onChange }: any) => {
+  const { tDomain } = useLanguage();
+  return (
+    <div className="flex bg-[#122b1e] p-1.5 w-full max-w-sm mx-auto shadow-inner rounded-[2px] gap-1 relative">
+      {['male', 'female', 'other'].map(genderKey => {
+        const isActive = value === genderKey;
+        return (
+          <button
+            key={genderKey}
+            type="button"
+            onClick={() => onChange(genderKey)}
+            className={`relative flex-1 py-2 text-sm font-medium rounded-[1px] transition-all flex items-center justify-center ${
+              isActive ? 'text-white' : 'text-[#8ba797] hover:text-white hover:bg-white/5'
+            }`}
+          >
+            {isActive && (
+              <motion.div
+                layoutId="genderHighlight"
+                className="absolute inset-0 bg-gradient-to-b from-[#88ba9d] to-[#173d26] shadow-sm border border-[#c0d4c8] rounded-[1px]"
+                transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
+              />
+            )}
+            <span className="relative z-10">{tDomain('gender', genderKey)}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 // InputWithUnit
 const InputWithUnit = ({ label, value, onChange, unit, onUnitToggle, unitOptions }: any) => {
@@ -97,11 +101,12 @@ const SimpleInput = ({ label, value, onChange, type = "text" }: any) => (
 
 // Stepper
 const Stepper = ({ currentStep }: { currentStep: number }) => {
+  const { t } = useLanguage();
   const steps = [
-    { id: 0, label: 'Basic Info', Icon: Ruler },
-    { id: 1, label: 'Diet Styles', Icon: Utensils },
-    { id: 2, label: 'Allergies', Icon: ShieldAlert },
-    { id: 3, label: 'Your goal', Icon: TargetIcon },
+    { id: 0, label: t.onboarding.steps[0], Icon: Ruler },
+    { id: 1, label: t.onboarding.steps[1], Icon: Utensils },
+    { id: 2, label: t.onboarding.steps[2], Icon: ShieldAlert },
+    { id: 3, label: t.onboarding.steps[3], Icon: TargetIcon },
   ];
 
   return (
@@ -133,45 +138,48 @@ const Stepper = ({ currentStep }: { currentStep: number }) => {
   );
 };
 
-const StepBodyMetrics = ({ data, updateData }: any) => (
-  <div className="flex flex-col items-center w-full max-w-sm mx-auto space-y-6">
-    <div className="text-center mb-4">
-      <p className="text-xs text-[#a0b0a6] uppercase tracking-widest font-mono mb-2">Step 1 Of 4</p>
-      <h3 className="text-2xl font-mono font-semibold text-[#1e4832]">Basic Info</h3>
-      <p className="text-sm text-[#a0b0a6] font-mono mt-1">Help us personalize your experience</p>
+const StepBodyMetrics = ({ data, updateData }: any) => {
+  const { t } = useLanguage();
+  return (
+    <div className="flex flex-col items-center w-full max-w-sm mx-auto space-y-6">
+      <div className="text-center mb-4">
+        <p className="text-xs text-[#a0b0a6] uppercase tracking-widest font-mono mb-2">{t.onboarding.step1.eyebrow}</p>
+        <h3 className="text-2xl font-mono font-semibold text-[#1e4832]">{t.onboarding.step1.title}</h3>
+        <p className="text-sm text-[#a0b0a6] font-mono mt-1">{t.onboarding.step1.subtitle}</p>
+      </div>
+      
+      <GenderToggle value={data.gender || 'male'} onChange={(v: string) => updateData({ gender: v })} />
+      
+      <SimpleInput 
+        label={t.onboarding.step1.nameLabel} 
+        value={data.full_name || ''} 
+        onChange={(e: any) => updateData({ full_name: e.target.value })} 
+      />
+      <InputWithUnit 
+        label={t.onboarding.step1.heightLabel} 
+        value={data.height_cm || ''} 
+        onChange={(e: any) => updateData({ height_cm: e.target.value })} 
+        unit={data.height_unit || 'CM'}
+        onUnitToggle={(u: string) => updateData({ height_unit: u })}
+        unitOptions={['CM', 'FT']}
+      />
+      <InputWithUnit 
+        label={t.onboarding.step1.weightLabel} 
+        value={data.weight_kg || ''} 
+        onChange={(e: any) => updateData({ weight_kg: e.target.value })} 
+        unit={data.weight_unit || 'KG'}
+        onUnitToggle={(u: string) => updateData({ weight_unit: u })}
+        unitOptions={['KG', 'LBS']}
+      />
+      <SimpleInput 
+        label={t.onboarding.step1.ageLabel} 
+        type="number"
+        value={data.age || ''} 
+        onChange={(e: any) => updateData({ age: e.target.value })} 
+      />
     </div>
-    
-    <GenderToggle value={data.gender || 'male'} onChange={(v: string) => updateData({ gender: v })} />
-    
-    <SimpleInput 
-      label="Your Name or Nickname" 
-      value={data.full_name || ''} 
-      onChange={(e: any) => updateData({ full_name: e.target.value })} 
-    />
-    <InputWithUnit 
-      label="Height" 
-      value={data.height_cm || ''} 
-      onChange={(e: any) => updateData({ height_cm: e.target.value })} 
-      unit={data.height_unit || 'CM'}
-      onUnitToggle={(u: string) => updateData({ height_unit: u })}
-      unitOptions={['CM', 'FT']}
-    />
-    <InputWithUnit 
-      label="Weight" 
-      value={data.weight_kg || ''} 
-      onChange={(e: any) => updateData({ weight_kg: e.target.value })} 
-      unit={data.weight_unit || 'KG'}
-      onUnitToggle={(u: string) => updateData({ weight_unit: u })}
-      unitOptions={['KG', 'LBS']}
-    />
-    <SimpleInput 
-      label="Age" 
-      type="number"
-      value={data.age || ''} 
-      onChange={(e: any) => updateData({ age: e.target.value })} 
-    />
-  </div>
-);
+  );
+};
 
 const MultiSelectPill = ({ label, selected, onClick }: any) => (
   <button
@@ -188,6 +196,7 @@ const MultiSelectPill = ({ label, selected, onClick }: any) => (
 );
 
 const StepDietStyles = ({ data, updateData }: any) => {
+  const { t, tDomain } = useLanguage();
   const [customDiet, setCustomDiet] = React.useState('');
   const [customMedical, setCustomMedical] = React.useState('');
 
@@ -235,21 +244,21 @@ const StepDietStyles = ({ data, updateData }: any) => {
   return (
     <div className="flex flex-col items-center w-full max-w-lg mx-auto space-y-8">
       <div className="text-center">
-        <p className="text-xs text-[#a0b0a6] uppercase tracking-widest font-mono mb-2">Step 2 Of 4</p>
-        <h3 className="text-2xl font-mono font-semibold text-[#1e4832]">Diet Styles</h3>
-        <p className="text-sm text-[#a0b0a6] font-mono mt-1">Select your dietary preferences and conditions</p>
+        <p className="text-xs text-[#a0b0a6] uppercase tracking-widest font-mono mb-2">{t.onboarding.step2.eyebrow}</p>
+        <h3 className="text-2xl font-mono font-semibold text-[#1e4832]">{t.onboarding.step2.title}</h3>
+        <p className="text-sm text-[#a0b0a6] font-mono mt-1">{t.onboarding.step2.subtitle}</p>
       </div>
 
       <div className="w-full">
-        <h4 className="text-sm text-[#a4b5aa] font-mono mb-3 text-left">Dietary Preferences</h4>
+        <h4 className="text-sm text-[#a4b5aa] font-mono mb-3 text-left">{t.onboarding.step2.dietPrefsLabel}</h4>
         <div className="flex flex-wrap gap-2 mb-3">
           {allDiets.map((item: string) => (
-            <MultiSelectPill key={item} label={item} selected={currentDiets.includes(item)} onClick={() => toggleDiet(item)} />
+            <MultiSelectPill key={item} label={tDomain('tags', item)} selected={currentDiets.includes(item)} onClick={() => toggleDiet(item)} />
           ))}
         </div>
         <input 
           type="text" 
-          placeholder="+ Add custom diet (press Enter)"
+          placeholder={t.onboarding.step2.addCustomDietPlaceholder}
           value={customDiet}
           onChange={(e) => setCustomDiet(e.target.value)}
           onKeyDown={addCustomDiet}
@@ -258,15 +267,15 @@ const StepDietStyles = ({ data, updateData }: any) => {
       </div>
 
       <div className="w-full">
-        <h4 className="text-sm text-[#a4b5aa] font-mono mb-3 text-left">Medical Conditions</h4>
+        <h4 className="text-sm text-[#a4b5aa] font-mono mb-3 text-left">{t.onboarding.step2.medicalLabel}</h4>
         <div className="flex flex-wrap gap-2 mb-3">
           {allMedical.map((item: string) => (
-            <MultiSelectPill key={item} label={item} selected={currentMedical.includes(item)} onClick={() => toggleMedical(item)} />
+            <MultiSelectPill key={item} label={tDomain('tags', item)} selected={currentMedical.includes(item)} onClick={() => toggleMedical(item)} />
           ))}
         </div>
         <input 
           type="text" 
-          placeholder="+ Add other condition (press Enter)"
+          placeholder={t.onboarding.step2.addCustomMedicalPlaceholder}
           value={customMedical}
           onChange={(e) => setCustomMedical(e.target.value)}
           onKeyDown={addCustomMedical}
@@ -278,6 +287,7 @@ const StepDietStyles = ({ data, updateData }: any) => {
 };
 
 const StepAllergies = ({ data, updateData }: any) => {
+  const { t, tDomain } = useLanguage();
   const [customInput, setCustomInput] = React.useState('');
   const [customMed, setCustomMed] = React.useState('');
   
@@ -328,22 +338,22 @@ const StepAllergies = ({ data, updateData }: any) => {
   return (
     <div className="flex flex-col items-center w-full max-w-lg mx-auto space-y-6">
       <div className="text-center mb-2">
-        <p className="text-xs text-[#a0b0a6] uppercase tracking-widest font-mono mb-2">Step 3 Of 4</p>
-        <h3 className="text-2xl font-mono font-semibold text-[#1e4832]">Allergies & Medications</h3>
-        <p className="text-sm text-[#a0b0a6] font-mono mt-1">Protect against allergies & food-drug interactions</p>
+        <p className="text-xs text-[#a0b0a6] uppercase tracking-widest font-mono mb-2">{t.onboarding.step3.eyebrow}</p>
+        <h3 className="text-2xl font-mono font-semibold text-[#1e4832]">{t.onboarding.step3.title}</h3>
+        <p className="text-sm text-[#a0b0a6] font-mono mt-1">{t.onboarding.step3.subtitle}</p>
       </div>
 
       <div className="w-full">
-        <h4 className="text-xs text-[#a4b5aa] font-mono mb-2 text-center uppercase tracking-wider">Allergens to Avoid</h4>
+        <h4 className="text-xs text-[#a4b5aa] font-mono mb-2 text-center uppercase tracking-wider">{t.onboarding.step3.allergensLabel}</h4>
         <div className="flex flex-wrap justify-center gap-2 w-full">
           {allItems.map((item: string) => (
-            <MultiSelectPill key={item} label={item} selected={currentSelections.includes(item)} onClick={() => toggleItem(item)} />
+            <MultiSelectPill key={item} label={tDomain('tags', item)} selected={currentSelections.includes(item)} onClick={() => toggleItem(item)} />
           ))}
         </div>
         <div className="w-full mt-2 flex items-center justify-center">
           <input 
             type="text" 
-            placeholder="+ Add other allergy (Enter)"
+            placeholder={t.onboarding.step3.addAllergyPlaceholder}
             value={customInput}
             onChange={(e) => setCustomInput(e.target.value)}
             onKeyDown={addCustomItem}
@@ -353,16 +363,16 @@ const StepAllergies = ({ data, updateData }: any) => {
       </div>
 
       <div className="w-full pt-4 border-t border-[#e8efe9]">
-        <h4 className="text-xs text-[#a4b5aa] font-mono mb-2 text-center uppercase tracking-wider">Active Medications (Optional Guardian)</h4>
+        <h4 className="text-xs text-[#a4b5aa] font-mono mb-2 text-center uppercase tracking-wider">{t.onboarding.step3.medsLabel}</h4>
         <div className="flex flex-wrap justify-center gap-2 w-full">
           {allMeds.map((item: string) => (
-            <MultiSelectPill key={item} label={item} selected={currentMeds.includes(item)} onClick={() => toggleMed(item)} />
+            <MultiSelectPill key={item} label={tDomain('tags', item)} selected={currentMeds.includes(item)} onClick={() => toggleMed(item)} />
           ))}
         </div>
         <div className="w-full mt-2 flex items-center justify-center">
           <input 
             type="text" 
-            placeholder="+ Add medication e.g. Warfarin (Enter)"
+            placeholder={t.onboarding.step3.addMedPlaceholder}
             value={customMed}
             onChange={(e) => setCustomMed(e.target.value)}
             onKeyDown={addCustomMed}
@@ -390,51 +400,54 @@ const SelectableCard = ({ title, description, selected, onClick }: any) => (
 );
 
 const StepGoal = ({ data, updateData }: any) => {
+  const { t, tDomain, formatText } = useLanguage();
   return (
     <div className="flex flex-col items-center w-full max-w-lg mx-auto space-y-8 max-h-[50vh] overflow-y-auto px-2">
       <div className="text-center shrink-0">
-        <p className="text-xs text-[#a0b0a6] uppercase tracking-widest font-mono mb-2">Step 4 Of 4</p>
-        <h3 className="text-2xl font-mono font-semibold text-[#1e4832]">Your Goal</h3>
-        <p className="text-sm text-[#a0b0a6] font-mono mt-1">Tell us your activity level and target</p>
+        <p className="text-xs text-[#a0b0a6] uppercase tracking-widest font-mono mb-2">{t.onboarding.step4.eyebrow}</p>
+        <h3 className="text-2xl font-mono font-semibold text-[#1e4832]">{t.onboarding.step4.title}</h3>
+        <p className="text-sm text-[#a0b0a6] font-mono mt-1">{t.onboarding.step4.subtitle}</p>
       </div>
 
       <div className="w-full space-y-3">
-        <h4 className="text-sm text-[#a4b5aa] font-mono mb-1 text-left">Activity Level</h4>
+        <h4 className="text-sm text-[#a4b5aa] font-mono mb-1 text-left">{t.onboarding.step4.activityLabel}</h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[
-            { id: 'sedentary', title: 'Sedentary', desc: 'Little or no exercise' },
-            { id: 'lightly_active', title: 'Lightly Active', desc: '1-3 days/week' },
-            { id: 'moderately_active', title: 'Moderately Active', desc: '3-5 days/week' },
-            { id: 'very_active', title: 'Very Active', desc: '6-7 days/week' },
-          ].map(level => (
-            <SelectableCard key={level.id} title={level.title} description={level.desc} selected={data.activity_level === level.id} onClick={() => updateData({ activity_level: level.id })} />
+          {['sedentary', 'lightly_active', 'moderately_active', 'very_active'].map(levelId => (
+            <SelectableCard
+              key={levelId}
+              title={tDomain('activityLevel', levelId)}
+              description={tDomain('activityDesc', levelId)}
+              selected={data.activity_level === levelId}
+              onClick={() => updateData({ activity_level: levelId })}
+            />
           ))}
         </div>
       </div>
 
       <div className="w-full space-y-3">
-        <h4 className="text-sm text-[#a4b5aa] font-mono mb-1 text-left">Primary Goal</h4>
+        <h4 className="text-sm text-[#a4b5aa] font-mono mb-1 text-left">{t.onboarding.step4.primaryGoalLabel}</h4>
         <div className="grid grid-cols-1 gap-3">
-          {[
-            { id: 'lose_weight_fast', title: 'Lose Weight Fast' },
-            { id: 'lose_weight_gradual', title: 'Lose Weight Gradual' },
-            { id: 'maintain_weight', title: 'Maintain Weight' },
-            { id: 'gain_muscle', title: 'Gain Muscle' },
-            { id: 'manage_condition', title: 'Manage Condition' },
-          ].map(goal => (
-            <SelectableCard key={goal.id} title={goal.title} selected={data.health_goal === goal.id} onClick={() => updateData({ health_goal: goal.id })} />
+          {['lose_weight_fast', 'lose_weight_gradual', 'maintain_weight', 'gain_muscle', 'manage_condition'].map(goalId => (
+            <SelectableCard
+              key={goalId}
+              title={tDomain('goal', goalId)}
+              selected={data.health_goal === goalId}
+              onClick={() => updateData({ health_goal: goalId })}
+            />
           ))}
         </div>
       </div>
 
       <div className="w-full pt-4 pb-8">
         <SimpleInput 
-          label="Target Weight (Optional)" 
+          label={t.onboarding.step4.targetWeightLabel} 
           type="number"
           value={data.target_weight_kg || ''} 
           onChange={(e: any) => updateData({ target_weight_kg: e.target.value })} 
         />
-        <p className="text-[10px] text-[#a4b5aa] mt-1 font-mono">Uses preferred unit ({data.weight_unit || 'KG'}) from Step 1</p>
+        <p className="text-[10px] text-[#a4b5aa] mt-1 font-mono">
+          {formatText(t.onboarding.step4.unitHint, { unit: data.weight_unit || 'KG' })}
+        </p>
       </div>
     </div>
   );
@@ -448,6 +461,7 @@ const steps = [
 ];
 
 export default function OnboardingPage() {
+  const { t } = useLanguage();
   const [currentStep, setCurrentStep] = useState(0);
   const [direction, setDirection] = useState(1);
   const [data, setData] = useState<any>({
@@ -554,8 +568,8 @@ export default function OnboardingPage() {
       <div className="w-full max-w-4xl min-h-[80vh] flex flex-col items-center py-10 px-4 sm:px-10 relative">
         
         <div className="text-center mb-10 mt-4">
-          <p className="text-sm text-[#8ba797] font-mono tracking-widest mb-2">Smart Onboarding</p>
-          <h1 className="text-4xl md:text-5xl font-serif text-[#1e4832]">Let's Personalise Your Scans</h1>
+          <p className="text-sm text-[#8ba797] font-mono tracking-widest mb-2">{t.onboarding.smartOnboarding}</p>
+          <h1 className="text-4xl md:text-5xl font-serif text-[#1e4832]">{t.onboarding.pageTitle}</h1>
         </div>
 
         <Stepper currentStep={currentStep} />
@@ -566,7 +580,7 @@ export default function OnboardingPage() {
                 onClick={handleBack} 
                 className="absolute top-4 left-6 text-xs font-mono text-[#8ba797] hover:text-[#1e4832] transition-colors"
              >
-                ← Back
+                {t.onboarding.back}
              </button>
           )}
 
@@ -596,7 +610,7 @@ export default function OnboardingPage() {
                     : 'bg-[#e0e8e3] text-[#a4b5aa] border border-transparent cursor-not-allowed opacity-70'
                 }`}
               >
-                {currentStep === steps.length - 1 ? 'Complete Setup' : 'Continue To Your Goals'}
+                {currentStep === steps.length - 1 ? t.onboarding.completeSetup : t.onboarding.continueToGoals}
               </button>
           </div>
         </div>

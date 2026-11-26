@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Save, ShieldAlert, Heart, Utensils, Ruler, Weight as WeightIcon, ChevronDown, Pill, AlertTriangle, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const ALLERGIES = ['Peanuts', 'Tree Nuts', 'Milk', 'Eggs', 'Wheat', 'Soy', 'Fish', 'Shellfish', 'Lactose', 'Gluten'];
 const INTOLERANCES = ['Lactose', 'Gluten', 'Fructose', 'Histamine', 'Caffeine', 'FODMAP', 'Salicylates'];
@@ -107,6 +108,7 @@ function buildInitialState(profile: any) {
 }
 
 export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: any) {
+  const { t, tDomain } = useLanguage();
   const [formData, setFormData] = useState(() => buildInitialState(profile));
   const [isSaving, setIsSaving] = useState(false);
 
@@ -167,8 +169,8 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
         className="w-full max-w-md h-full bg-white shadow-2xl flex flex-col"
       >
         <div className="flex items-center justify-between p-6 border-b border-[#e8efe9]">
-          <h2 className="font-serif text-2xl text-[#1e4832]">Edit Profile</h2>
-          <button onClick={onClose} className="p-2 hover:bg-[#f0f5f2] rounded-[4px] text-[#8ba797] transition-colors">
+          <h2 className="font-serif text-2xl text-[#1e4832]">{t.editProfileModal.title}</h2>
+          <button onClick={onClose} aria-label={t.common.close} className="p-2 hover:bg-[#f0f5f2] rounded-[4px] text-[#8ba797] transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -176,9 +178,9 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
           {/* Basic Info */}
           <section className="space-y-4">
-            <h3 className="font-mono text-xs uppercase tracking-widest text-[#8ba797]">Personal Info</h3>
+            <h3 className="font-mono text-xs uppercase tracking-widest text-[#8ba797]">{t.editProfileModal.personalInfo}</h3>
             <div>
-              <label className="block text-xs font-mono text-[#1e4832] mb-1">Full Name</label>
+              <label className="block text-xs font-mono text-[#1e4832] mb-1">{t.editProfileModal.fullName}</label>
               <input
                 type="text"
                 value={formData.full_name}
@@ -189,7 +191,7 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
 
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-mono text-[#1e4832] mb-1">Height (cm)</label>
+                <label className="block text-xs font-mono text-[#1e4832] mb-1">{t.editProfileModal.heightCm}</label>
                 <div className="relative">
                   <Ruler className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-[#8ba797]" />
                   <input
@@ -201,7 +203,7 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-mono text-[#1e4832] mb-1">Weight (kg)</label>
+                <label className="block text-xs font-mono text-[#1e4832] mb-1">{t.editProfileModal.weightKg}</label>
                 <div className="relative">
                   <WeightIcon className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-[#8ba797]" />
                   <input
@@ -213,12 +215,12 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-mono text-[#1e4832] mb-1">Target (kg)</label>
+                <label className="block text-xs font-mono text-[#1e4832] mb-1">{t.editProfileModal.targetKg}</label>
                 <div className="relative">
                   <Target className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-[#8ba797]" />
                   <input
                     type="number"
-                    placeholder="Optional"
+                    placeholder={t.common.optional}
                     value={formData.target_weight_kg}
                     onChange={(e) => setFormData({ ...formData, target_weight_kg: e.target.value })}
                     className="w-full pl-8 pr-2 py-2 bg-white border border-[#c5d1c9] rounded-[4px] text-sm focus:outline-none focus:border-[#1a3825] font-sans"
@@ -229,50 +231,50 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-mono text-[#1e4832] mb-1">Gender</label>
+                <label className="block text-xs font-mono text-[#1e4832] mb-1">{t.editProfileModal.gender}</label>
                 <CustomSelect
                   value={formData.gender || 'male'}
                   onChange={(val) => setFormData({ ...formData, gender: val })}
                   options={[
-                    { label: 'Male', value: 'male' },
-                    { label: 'Female', value: 'female' },
-                    { label: 'Other', value: 'other' },
+                    { label: tDomain('gender', 'male'), value: 'male' },
+                    { label: tDomain('gender', 'female'), value: 'female' },
+                    { label: tDomain('gender', 'other'), value: 'other' },
                   ]}
                 />
               </div>
               <div>
-                <label className="block text-xs font-mono text-[#1e4832] mb-1">Goal</label>
+                <label className="block text-xs font-mono text-[#1e4832] mb-1">{t.editProfileModal.goal}</label>
                 <CustomSelect
                   value={formData.goal || 'maintain_weight'}
                   onChange={(val) => setFormData({ ...formData, goal: val })}
-                  options={GOALS.map((g) => ({ label: snakeToTitle(g), value: g }))}
+                  options={GOALS.map((g) => ({ label: tDomain('goal', g), value: g }))}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-mono text-[#1e4832] mb-1">Activity Level</label>
+              <label className="block text-xs font-mono text-[#1e4832] mb-1">{t.editProfileModal.activityLevel}</label>
               <CustomSelect
                 value={formData.activity_level || 'sedentary'}
                 onChange={(val) => setFormData({ ...formData, activity_level: val })}
-                options={ACTIVITY_LEVELS.map((a) => ({ label: snakeToTitle(a), value: a }))}
+                options={ACTIVITY_LEVELS.map((a) => ({ label: tDomain('activityLevel', a), value: a }))}
               />
             </div>
           </section>
 
           {/* Dietary Info */}
           <section className="space-y-6 pt-4 border-t border-[#e8efe9]">
-            <h3 className="font-mono text-xs uppercase tracking-widest text-[#8ba797]">Dietary Profile</h3>
+            <h3 className="font-mono text-xs uppercase tracking-widest text-[#8ba797]">{t.editProfileModal.dietaryProfile}</h3>
 
             <div>
               <label className="flex items-center gap-2 text-xs font-mono text-[#1e4832] mb-2">
-                <ShieldAlert size={14} /> Allergies
+                <ShieldAlert size={14} /> {t.editProfileModal.allergies}
               </label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {Array.from(new Set([...ALLERGIES, ...formData.allergies])).map((item) => (
                   <MultiSelectPill
                     key={item as string}
-                    label={item as string}
+                    label={tDomain('tags', item as string)}
                     selected={formData.allergies.includes(item)}
                     onClick={() => toggleArrayItem('allergies', item as string)}
                   />
@@ -280,7 +282,7 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
               </div>
               <input
                 type="text"
-                placeholder="+ Add custom allergy (Enter)"
+                placeholder={t.editProfileModal.addCustomAllergy}
                 value={customAllergy}
                 onChange={(e) => setCustomAllergy(e.target.value)}
                 onKeyDown={(e) => {
@@ -295,13 +297,13 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
 
             <div>
               <label className="flex items-center gap-2 text-xs font-mono text-[#1e4832] mb-2">
-                <AlertTriangle size={14} /> Intolerances
+                <AlertTriangle size={14} /> {t.editProfileModal.intolerances}
               </label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {Array.from(new Set([...INTOLERANCES, ...formData.intolerances])).map((item) => (
                   <MultiSelectPill
                     key={item as string}
-                    label={item as string}
+                    label={tDomain('tags', item as string)}
                     selected={formData.intolerances.includes(item)}
                     onClick={() => toggleArrayItem('intolerances', item as string)}
                   />
@@ -309,7 +311,7 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
               </div>
               <input
                 type="text"
-                placeholder="+ Add custom intolerance (Enter)"
+                placeholder={t.editProfileModal.addCustomIntolerance}
                 value={customIntolerance}
                 onChange={(e) => setCustomIntolerance(e.target.value)}
                 onKeyDown={(e) => {
@@ -324,13 +326,13 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
 
             <div>
               <label className="flex items-center gap-2 text-xs font-mono text-[#1e4832] mb-2">
-                <Heart size={14} /> Medical Conditions
+                <Heart size={14} /> {t.editProfileModal.medicalConditions}
               </label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {Array.from(new Set([...MEDICAL, ...formData.medical_conditions])).map((item) => (
                   <MultiSelectPill
                     key={item as string}
-                    label={item as string}
+                    label={tDomain('tags', item as string)}
                     selected={formData.medical_conditions.includes(item)}
                     onClick={() => toggleArrayItem('medical_conditions', item as string)}
                   />
@@ -338,7 +340,7 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
               </div>
               <input
                 type="text"
-                placeholder="+ Add custom medical condition (Enter)"
+                placeholder={t.editProfileModal.addCustomMedical}
                 value={customMedical}
                 onChange={(e) => setCustomMedical(e.target.value)}
                 onKeyDown={(e) => {
@@ -353,13 +355,13 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
 
             <div>
               <label className="flex items-center gap-2 text-xs font-mono text-[#1e4832] mb-2">
-                <Utensils size={14} /> Dietary Preferences
+                <Utensils size={14} /> {t.editProfileModal.dietaryPreferences}
               </label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {Array.from(new Set([...DIET, ...formData.dietary_preferences])).map((item) => (
                   <MultiSelectPill
                     key={item as string}
-                    label={item as string}
+                    label={tDomain('tags', item as string)}
                     selected={formData.dietary_preferences.includes(item)}
                     onClick={() => toggleArrayItem('dietary_preferences', item as string)}
                   />
@@ -367,7 +369,7 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
               </div>
               <input
                 type="text"
-                placeholder="+ Add custom diet (Enter)"
+                placeholder={t.editProfileModal.addCustomDiet}
                 value={customDiet}
                 onChange={(e) => setCustomDiet(e.target.value)}
                 onKeyDown={(e) => {
@@ -382,13 +384,13 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
 
             <div>
               <label className="flex items-center gap-2 text-xs font-mono text-[#1e4832] mb-2">
-                <Pill size={14} /> Active Medications (Drug-Food Guardian)
+                <Pill size={14} /> {t.editProfileModal.activeMedications}
               </label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {Array.from(new Set([...MEDICATIONS, ...(formData.medications || [])])).map((item) => (
                   <MultiSelectPill
                     key={item as string}
-                    label={item as string}
+                    label={tDomain('tags', item as string)}
                     selected={(formData.medications || []).includes(item)}
                     onClick={() => toggleArrayItem('medications', item as string)}
                   />
@@ -396,7 +398,7 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
               </div>
               <input
                 type="text"
-                placeholder="+ Add medication e.g. Warfarin, Metformin (Enter)"
+                placeholder={t.editProfileModal.addCustomMedication}
                 value={customMedication}
                 onChange={(e) => setCustomMedication(e.target.value)}
                 onKeyDown={(e) => {
@@ -417,7 +419,7 @@ export default function EditSettingsModal({ isOpen, onClose, profile, onSave }: 
             disabled={isSaving}
             className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#c0d4c8] rounded-[4px] text-white font-mono text-sm hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50"
           >
-            {isSaving ? 'Saving...' : <><Save size={16} /> Save Changes</>}
+            {isSaving ? t.common.saving : <><Save size={16} /> {t.editProfileModal.saveChanges}</>}
           </button>
         </div>
       </motion.div>

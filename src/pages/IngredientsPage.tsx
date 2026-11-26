@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import IngredientCard from '@/components/ingredients/IngredientCard';
 import { useIngredients } from '@/hooks/useIngredients';
 import { getEmojiForIcon } from '@/lib/emoji-map';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type FilterType = 'All' | 'Safe' | 'Flagged' | 'Allergen';
 
@@ -29,6 +30,7 @@ export default function IngredientsPage() {
 
   const location = useLocation();
   const navigate = useNavigate();
+  const { t, formatText } = useLanguage();
   const [selectedIngredient, setSelectedIngredient] = useState<any | null>(null);
   const [localSearch, setLocalSearch] = useState(searchQuery || '');
 
@@ -78,7 +80,7 @@ export default function IngredientsPage() {
           onClick={() => setSelectedIngredient(null)}
           className="mb-6 px-4 py-2 bg-white border border-[#cfdfd5] rounded-[4px] text-sm font-mono text-[#5a7a68] hover:bg-[#f0f5f2] hover:text-[#1e4832] transition-colors flex items-center gap-2"
         >
-          <CaretLeft size={16} /> Back to Ingredients Dictionary
+          <CaretLeft size={16} /> {t.ingredients.backToDict}
         </button>
 
         <motion.div
@@ -88,7 +90,13 @@ export default function IngredientsPage() {
         >
           <div className="mb-4">
             <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-[11px] font-mono font-bold tracking-wider ${badgeStyle}`}>
-              {selectedIngredient.status === 'Allergen' ? 'Allergen Alert' : selectedIngredient.status}
+              {selectedIngredient.status === 'Allergen'
+                ? t.common.allergenAlert
+                : selectedIngredient.status === 'Flagged'
+                  ? t.common.flagged
+                  : selectedIngredient.status === 'Safe'
+                    ? t.common.safe
+                    : selectedIngredient.status}
             </div>
           </div>
           
@@ -97,13 +105,13 @@ export default function IngredientsPage() {
           </h2>
           
           <p className="text-sm md:text-base text-[#5a7a68] font-mono leading-relaxed mb-6">
-            {selectedIngredient.description || 'No description available.'}
+            {selectedIngredient.description || t.ingredients.noDescription}
           </p>
 
           {selectedIngredient.reason && (
             <div className="mb-6 p-4 bg-[#fafcfb] border border-[#e8efe9] rounded-[4px]">
               <p className="text-[12px] md:text-[13px] text-[#5a7a68] font-mono leading-relaxed">
-                <span className="font-bold text-[#1e4832]">Note: </span>{selectedIngredient.reason}
+                <span className="font-bold text-[#1e4832]">{t.ingredients.noteLabel}</span>{selectedIngredient.reason}
               </p>
             </div>
           )}
@@ -111,7 +119,7 @@ export default function IngredientsPage() {
           <hr className="border-[#e8efe9] my-6" />
 
           <div>
-            <p className="text-[11px] font-mono text-[#8ba797] mb-3 uppercase tracking-wider">Commonly Found In:</p>
+            <p className="text-[11px] font-mono text-[#8ba797] mb-3 uppercase tracking-wider">{t.ingredients.commonlyFoundIn}</p>
             <ul className="flex flex-wrap items-center gap-3">
               {(selectedIngredient.commonly_found_in || []).map((item: any, index: number) => (
                 <li key={index} className="flex items-center gap-2 text-[12px] text-[#1e4832] font-mono bg-[#f0f5f2] px-3 py-1.5 rounded-[4px]">
@@ -123,7 +131,7 @@ export default function IngredientsPage() {
           </div>
         </motion.div>
 
-        <h3 className="text-2xl font-serif text-[#1e4832] mb-4">Related Ingredients & Alternatives</h3>
+        <h3 className="text-2xl font-serif text-[#1e4832] mb-4">{t.ingredients.relatedAlts}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
           {ingredients
             .filter(i => i.status === 'Safe' && i.id !== selectedIngredient.id)
@@ -132,7 +140,7 @@ export default function IngredientsPage() {
             <IngredientCard
               key={alt.id}
               name={alt.ingredient_name}
-              category={alt.category || 'Unknown'}
+              category={alt.category || t.ingredients.unknownCategory}
               status={alt.status as any}
               commonlyFoundIn={alt.commonly_found_in || []}
               onClick={() => setSelectedIngredient(alt)}
@@ -154,10 +162,10 @@ export default function IngredientsPage() {
         <div className="flex flex-row items-start justify-between gap-4 mb-6">
           <div className="flex-1 pr-2">
             <h1 className="text-3xl md:text-4xl font-serif text-[#1e4832] mb-2 tracking-tight leading-none md:leading-tight">
-              Smart Ingredient Dictionary
+              {t.ingredients.title}
             </h1>
             <p className="text-[#5a7a68] font-mono text-xs md:text-base">
-              Understand what's really inside your food.
+              {t.ingredients.subtitle}
             </p>
           </div>
 
@@ -165,13 +173,13 @@ export default function IngredientsPage() {
             <button
               onClick={generateSeedIngredients}
               disabled={isGenerating}
-              title="Regenerate from Profile"
+              title={t.ingredients.regenerateTitle}
               className="w-10 h-10 md:w-auto md:px-5 md:py-2.5 rounded-[4px] border border-[#cfdfd5] bg-white text-[#1e4832] font-mono text-[13px] flex items-center justify-center gap-2 hover:bg-[#f0f5f2] transition-colors disabled:opacity-50 flex-shrink-0"
             >
               {isGenerating ? (
-                <><Loader2 className="w-5 h-5 md:w-4 md:h-4 animate-spin text-[#6b9279]" /> <span className="hidden md:inline">Generating...</span></>
+                <><Loader2 className="w-5 h-5 md:w-4 md:h-4 animate-spin text-[#6b9279]" /> <span className="hidden md:inline">{t.ingredients.generating}</span></>
               ) : (
-                <><Sparkle size={20} className="text-[#1a3825] md:w-4 md:h-4" weight="fill" /> <span className="hidden md:inline">Regenerate</span></>
+                <><Sparkle size={20} className="text-[#1a3825] md:w-4 md:h-4" weight="fill" /> <span className="hidden md:inline">{t.ingredients.regenerate}</span></>
               )}
             </button>
           )}
@@ -184,7 +192,7 @@ export default function IngredientsPage() {
           </div>
             <input
               type="text"
-              placeholder="Search ingredients (e.g., E407, Maltodextrin...)"
+              placeholder={t.ingredients.searchPlaceholder}
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
             className="w-full pl-11 pr-4 py-3 bg-white border border-[#cfdfd5] rounded-[4px] text-sm md:text-base text-[#1e4832] placeholder:text-[#8ba797] focus:outline-none focus:ring-2 focus:ring-[#6b9279]/20 focus:border-[#6b9279] transition-all font-mono"
@@ -213,7 +221,7 @@ export default function IngredientsPage() {
                     transition={{ type: "spring", stiffness: 350, damping: 30 }}
                   />
                 )}
-                <span className="relative z-10">{f}</span>
+                <span className="relative z-10">{t.ingredients.filters[f]}</span>
               </button>
             );
           })}
@@ -251,9 +259,9 @@ export default function IngredientsPage() {
           <div className="w-16 h-16 rounded-[4px] bg-[#f0f5f2] flex items-center justify-center mb-6">
             <Sparkle size={32} className="text-[#6b8274]" weight="fill" />
           </div>
-          <h2 className="font-serif text-2xl text-[#1e4832] mb-3">Your dictionary is empty</h2>
+          <h2 className="font-serif text-2xl text-[#1e4832] mb-3">{t.ingredients.emptyTitle}</h2>
           <p className="text-[#6b8274] font-mono text-sm max-w-md mb-8 leading-relaxed">
-            Generate a personalized ingredient dictionary based on your health profile. Our AI will identify ingredients you should watch out for based on your allergies, conditions, and dietary preferences.
+            {t.ingredients.emptyDesc}
           </p>
           <button
             onClick={generateSeedIngredients}
@@ -261,15 +269,15 @@ export default function IngredientsPage() {
             className="px-8 py-4 rounded-[4px] bg-gradient-to-b from-[#88ba9d] to-[#173d26] border border-[#1a3825] text-white font-mono text-[13px] flex items-center gap-3 shadow-[inset_0_0_0_1.5px_rgba(255,255,255,0.3),_0_4px_12px_rgba(22,51,35,0.3)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isGenerating ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Generating with AI...</>
+              <><Loader2 className="w-4 h-4 animate-spin" /> {t.ingredients.generatingAI}</>
             ) : (
-              <><Sparkle size={18} weight="fill" /> Generate My Ingredients</>
+              <><Sparkle size={18} weight="fill" /> {t.ingredients.generateBtn}</>
             )}
           </button>
         </motion.div>
       ) : ingredients.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-[4px] border border-[#e8efe9] mb-8">
-          <p className="text-[#5a7a68] font-mono">No ingredients found matching your criteria.</p>
+          <p className="text-[#5a7a68] font-mono">{t.ingredients.noMatch}</p>
         </div>
       ) : (
         <>
@@ -279,7 +287,7 @@ export default function IngredientsPage() {
               <IngredientCard
                 key={ingredient.id}
                 name={ingredient.ingredient_name}
-                category={ingredient.category || 'Unknown'}
+                category={ingredient.category || t.ingredients.unknownCategory}
                 status={ingredient.status as any}
                 commonlyFoundIn={ingredient.commonly_found_in || []}
                 onClick={() => setSelectedIngredient(ingredient)}
@@ -334,7 +342,11 @@ export default function IngredientsPage() {
                 </button>
               </div>
               <p className="text-xs font-mono text-[#8ba797]">
-                Showing {(page - 1) * 8 + 1}-{Math.min(page * 8, totalCount)} of {totalCount} ingredients
+                {formatText(t.ingredients.showingRange, {
+                  from: (page - 1) * 8 + 1,
+                  to: Math.min(page * 8, totalCount),
+                  total: totalCount,
+                })}
               </p>
             </div>
           )}

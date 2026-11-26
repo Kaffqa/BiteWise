@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { User, Bell, Search, Loader2, Utensils, Beaker, PlusCircle, X } from 'lucide-react';
 import { ShieldWarning, CheckCircle, Info } from '@phosphor-icons/react';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -13,6 +14,7 @@ import BrandLogo from '@/components/ui/BrandLogo';
 export default function Header() {
   const { profile } = useProfile();
   const { user } = useAuth();
+  const { t, formatText, dateLocale } = useLanguage();
   const navigate = useNavigate();
   const [imgError, setImgError] = useState(false);
   
@@ -74,7 +76,7 @@ export default function Header() {
         } catch(e) {}
 
         const combined = [
-          ...(meals || []).map((m: any) => ({ type: 'meal' as const, id: m.id, title: m.meal_title, subtitle: `${Math.round(Number(m.total_calories) || 0)} kcal` })),
+          ...(meals || []).map((m: any) => ({ type: 'meal' as const, id: m.id, title: m.meal_title, subtitle: `${Math.round(Number(m.total_calories) || 0)} ${t.common.kcal}` })),
           ...ingredients.map((i: any) => ({ type: 'ingredient' as const, id: i.id, title: i.ingredient_name, subtitle: i.category, status: i.status }))
         ];
         
@@ -107,7 +109,7 @@ export default function Header() {
             setShowDropdown(true);
           }}
           onFocus={() => setShowDropdown(true)}
-          placeholder="Search food, ingredient or additive code"
+          placeholder={t.header.searchPlaceholder}
           className="w-full pl-9 pr-4 py-2 bg-white border border-[#e0e8e3] rounded-[2px] text-xs text-[#1e4832] placeholder:text-[#a4b5aa] focus:outline-none focus:border-[#5c8b71] font-mono shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-colors"
         />
         
@@ -123,7 +125,7 @@ export default function Header() {
               {isSearching ? (
                 <div className="p-6 flex flex-col items-center justify-center text-[#8ba797]">
                   <Loader2 className="w-5 h-5 animate-spin mb-2" />
-                  <span className="font-mono text-xs">Searching...</span>
+                  <span className="font-mono text-xs">{t.header.searching}</span>
                 </div>
               ) : results.length > 0 ? (
                 <div className="flex flex-col py-2 max-h-[300px] overflow-y-auto">
@@ -144,12 +146,24 @@ export default function Header() {
                       <div className="flex flex-col flex-1 min-w-0">
                         <span className="font-serif text-[14px] text-[#1e4832] truncate leading-tight">{r.title}</span>
                         <span className="font-mono text-[10px] text-[#8ba797] uppercase tracking-wide truncate">
-                          {r.type === 'meal' ? `Meal • ${r.subtitle}` : `Ingredient • ${r.subtitle || 'Unknown'}`}
+                          {r.type === 'meal'
+                            ? `${t.header.meal} • ${r.subtitle}`
+                            : `${t.header.ingredient} • ${r.subtitle || t.header.unknownCategory}`}
                         </span>
                       </div>
                       {r.status && r.type === 'ingredient' && (
-                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${r.status === 'Safe' ? 'bg-[#bbf7d0] text-[#166534]' : 'bg-[#fecaca] text-[#991b1b]'}`}>
-                          {r.status}
+                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
+                          r.status === 'Safe'
+                            ? 'bg-[#bbf7d0] text-[#166534]'
+                            : r.status === 'Flagged'
+                            ? 'bg-[#fef3c7] text-[#92400e]'
+                            : 'bg-[#fecaca] text-[#991b1b]'
+                        }`}>
+                          {r.status === 'Safe'
+                            ? t.common.safe
+                            : r.status === 'Flagged'
+                            ? t.common.flagged
+                            : t.ingredients.filters.Allergen}
                         </span>
                       )}
                     </div>
@@ -166,14 +180,16 @@ export default function Header() {
                   >
                     <div className="flex items-center gap-2">
                       <PlusCircle size={14} className="text-[#8ba797] group-hover:text-[#1e4832] transition-colors" />
-                      <span className="font-mono text-[11px] font-medium">Log "{searchQuery}" manually</span>
+                      <span className="font-mono text-[11px] font-medium">
+                        {formatText(t.header.logQuotedManually, { query: searchQuery })}
+                      </span>
                     </div>
                   </div>
                 </div>
               ) : (
                 <div className="p-6 flex flex-col items-center justify-center text-center">
-                  <span className="font-serif text-[#1e4832] mb-1">No results found</span>
-                  <span className="font-mono text-[11px] text-[#8ba797]">Try a different keyword</span>
+                  <span className="font-serif text-[#1e4832] mb-1">{t.header.noResults}</span>
+                  <span className="font-mono text-[11px] text-[#8ba797]">{t.header.tryDifferentKeyword}</span>
                   <button
                     onClick={() => {
                       const prefill = searchQuery.trim();
@@ -184,7 +200,7 @@ export default function Header() {
                     className="mt-4 px-4 py-1.5 flex items-center gap-1.5 bg-[#f0f5f2] border border-[#e0e8e3] rounded-full text-[#1e4832] font-mono text-[10px] hover:bg-[#e8efe9] transition-colors"
                   >
                     <PlusCircle size={12} />
-                    Log Manually
+                    {t.header.logManually}
                   </button>
                 </div>
               )}
@@ -199,6 +215,7 @@ export default function Header() {
         <div className="relative" ref={notifRef}>
           <button 
             onClick={() => setShowNotif(!showNotif)}
+            aria-label={t.header.notifications}
             className="w-8 h-8 flex items-center justify-center rounded-[2px] bg-gradient-to-b from-[#88ba9d] to-[#173d26] text-white shadow-sm border border-[#c0d4c8] hover:shadow-md transition-all relative"
           >
             <Bell className="w-4 h-4" />
@@ -218,14 +235,14 @@ export default function Header() {
               >
                 <div className="p-3 border-b border-[#e0e8e3] flex justify-between items-center bg-[#f7f9f8]">
                   <div className="flex items-center gap-2">
-                    <span className="font-serif text-[#1e4832] text-sm font-medium">Notifications</span>
+                    <span className="font-serif text-[#1e4832] text-sm font-medium">{t.header.notifications}</span>
                     {unreadCount > 0 && (
                       <button onClick={markAllAsRead} className="font-mono text-[10px] text-[#5c8b71] hover:text-[#1e4832] transition-colors">
-                        Mark all as read
+                        {t.header.markAllRead}
                       </button>
                     )}
                   </div>
-                  <button onClick={() => setShowNotif(false)} className="text-[#8ba797] hover:text-[#1e4832] transition-colors p-1 rounded-[2px] hover:bg-[#e0e8e3]">
+                  <button onClick={() => setShowNotif(false)} aria-label={t.common.close} className="text-[#8ba797] hover:text-[#1e4832] transition-colors p-1 rounded-[2px] hover:bg-[#e0e8e3]">
                     <X size={14} />
                   </button>
                 </div>
@@ -234,8 +251,8 @@ export default function Header() {
                   {notifications.length === 0 ? (
                     <div className="p-8 flex flex-col items-center justify-center text-center">
                       <Bell className="w-8 h-8 text-[#c5d1c9] mb-2" />
-                      <span className="font-serif text-[#1e4832] text-sm">You're all caught up!</span>
-                      <span className="font-mono text-[10px] text-[#8ba797] mt-1">No new notifications right now.</span>
+                      <span className="font-serif text-[#1e4832] text-sm">{t.header.allCaughtUp}</span>
+                      <span className="font-mono text-[10px] text-[#8ba797] mt-1">{t.header.noNotifications}</span>
                     </div>
                   ) : (
                     notifications.map(n => (
@@ -255,7 +272,7 @@ export default function Header() {
                           <span className="font-mono text-[11px] font-bold text-[#1e4832] mb-0.5">{n.title}</span>
                           <span className="font-mono text-[10px] text-[#5a7a68] leading-tight">{n.message}</span>
                           <span className="font-mono text-[9px] text-[#a4b5aa] mt-1.5">
-                            {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                            {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: dateLocale })}
                           </span>
                         </div>
                         {!n.is_read && <div className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0 mt-1" />}

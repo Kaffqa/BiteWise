@@ -3,8 +3,10 @@ import {
   buildTextSystemPrompt,
   buildUserPrompt,
   buildIngredientsSystemPrompt,
+  buildEnrichIngredientsPrompt,
   FOOD_ANALYSIS_SCHEMA,
   INGREDIENTS_GENERATION_SCHEMA,
+  type PromptLanguage,
   type PromptConsumedToday,
   type PromptUserHealthProfile,
 } from './_prompts.js';
@@ -137,6 +139,7 @@ async function callGroq(
 ): Promise<any> {
   const endpoint = 'https://api.groq.com/openai/v1/chat/completions';
   const startTime = Date.now();
+  const language: PromptLanguage = payload?.language === 'id' ? 'id' : 'en';
   let requestBody: Record<string, unknown>;
 
   if (action === 'analyzeFood') {
@@ -148,7 +151,7 @@ async function callGroq(
     const imageUrl = imageBase64.startsWith('data:')
       ? imageBase64
       : `data:image/jpeg;base64,${imageBase64}`;
-    const fullSystemPrompt = `${buildSystemPrompt(userProfile, consumedToday)}\n\nEnsure your response is a valid JSON object matching exactly this JSON schema:\n${JSON.stringify(FOOD_ANALYSIS_SCHEMA, null, 2)}`;
+    const fullSystemPrompt = `${buildSystemPrompt(userProfile, consumedToday, language)}\n\nEnsure your response is a valid JSON object matching exactly this JSON schema:\n${JSON.stringify(FOOD_ANALYSIS_SCHEMA, null, 2)}`;
 
     requestBody = {
       model: 'qwen/qwen3.8-27b',
@@ -159,7 +162,7 @@ async function callGroq(
         {
           role: 'user',
           content: [
-            { type: 'text', text: buildUserPrompt() },
+            { type: 'text', text: buildUserPrompt(language) },
             { type: 'image_url', image_url: { url: imageUrl } },
           ],
         },
@@ -172,7 +175,7 @@ async function callGroq(
       userProfile: PromptUserHealthProfile;
       consumedToday?: PromptConsumedToday;
     };
-    const fullSystemPrompt = `${buildTextSystemPrompt(userProfile, consumedToday)}\n\nEnsure your response is a valid JSON object matching exactly this JSON schema:\n${JSON.stringify(FOOD_ANALYSIS_SCHEMA, null, 2)}`;
+    const fullSystemPrompt = `${buildTextSystemPrompt(userProfile, consumedToday, language)}\n\nEnsure your response is a valid JSON object matching exactly this JSON schema:\n${JSON.stringify(FOOD_ANALYSIS_SCHEMA, null, 2)}`;
 
     requestBody = {
       model: 'openai/gpt-oss-120b',
@@ -182,14 +185,17 @@ async function callGroq(
         { role: 'system', content: fullSystemPrompt },
         {
           role: 'user',
-          content: `Analyze this food description: "${description}". Estimate nutrition and check for safety concerns based on my health profile.`,
+          content:
+            language === 'id'
+              ? `Analisis deskripsi makanan ini: "${description}". Perkirakan nutrisinya dan periksa keamanan berdasarkan profil kesehatan saya.`
+              : `Analyze this food description: "${description}". Estimate nutrition and check for safety concerns based on my health profile.`,
         },
       ],
       response_format: { type: 'json_object' },
     };
   } else if (action === 'generateIngredients') {
     const { userProfile } = payload as { userProfile: PromptUserHealthProfile };
-    const fullSystemPrompt = `${buildIngredientsSystemPrompt(userProfile)}\n\nEnsure your response is a valid JSON object matching exactly this JSON schema:\n${JSON.stringify(INGREDIENTS_GENERATION_SCHEMA, null, 2)}`;
+    const fullSystemPrompt = `${buildIngredientsSystemPrompt(userProfile, language)}\n\nEnsure your response is a valid JSON object matching exactly this JSON schema:\n${JSON.stringify(INGREDIENTS_GENERATION_SCHEMA, null, 2)}`;
 
     requestBody = {
       model: 'openai/gpt-oss-120b',
@@ -197,7 +203,13 @@ async function callGroq(
       temperature: 0.3,
       messages: [
         { role: 'system', content: fullSystemPrompt },
-        { role: 'user', content: 'Generate personalized ingredients.' },
+        {
+          role: 'user',
+          content:
+            language === 'id'
+              ? 'Buat daftar bahan makanan personal berdasarkan profil kesehatan saya.'
+              : 'Generate personalized ingredients.',
+        },
       ],
       response_format: { type: 'json_object' },
     };
@@ -206,25 +218,7 @@ async function callGroq(
       ingredientNames: string[];
       userProfile: PromptUserHealthProfile;
     };
-    const prompt = `You are a nutrition expert. I have a list of food items or ingredients: ${JSON.stringify(ingredientNames)}.
-For each item, provide detailed information.
-The user's health profile:
-Allergies: ${userProfile.allergies?.join(', ') || 'None'}
-Medical Conditions: ${userProfile.medicalConditions?.join(', ') || 'None'}
-Active Medications: ${userProfile.medications?.join(', ') || 'None'}
-
-Return a JSON array of objects with the exact following schema for each item:
-{
-  "ingredientName": "exact name from my list",
-  "category": "e.g., Protein, Additive, Vegetable",
-  "reason": "Why this is safe/flagged/allergen specifically for this user's profile (max 2 sentences)",
-  "description": "Comprehensive educational description explaining what it is and its health effects (2-3 sentences).",
-  "commonlyFoundIn": [
-    {"icon": "ONE SINGLE EMOJI", "label": "food name"}
-  ]
-}
-
-Return ONLY the JSON object like this: { "results": [ ...array items... ] }`;
+    const prompt = buildEnrichIngredientsPrompt(ingredientNames, userProfile, language, true);
 
     requestBody = {
       model: 'openai/gpt-oss-120b',
@@ -277,6 +271,7 @@ async function callGemini(
 ): Promise<any> {
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
   const startTime = Date.now();
+  const language: PromptLanguage = payload?.language === 'id' ? 'id' : 'en';
   let requestBody: Record<string, unknown>;
 
   if (action === 'analyzeFood') {
@@ -294,12 +289,12 @@ async function callGemini(
         {
           role: 'user',
           parts: [
-            { text: buildUserPrompt() },
+            { text: buildUserPrompt(language) },
             { inline_data: { mime_type: 'image/jpeg', data: base64Data } },
           ],
         },
       ],
-      system_instruction: { parts: [{ text: buildSystemPrompt(userProfile, consumedToday) }] },
+      system_instruction: { parts: [{ text: buildSystemPrompt(userProfile, consumedToday, language) }] },
       generationConfig: {
         response_mime_type: 'application/json',
         response_schema: FOOD_ANALYSIS_SCHEMA,
@@ -318,12 +313,15 @@ async function callGemini(
           role: 'user',
           parts: [
             {
-              text: `Analyze this food description: "${description}". Estimate nutrition and check for safety concerns based on my health profile.`,
+              text:
+                language === 'id'
+                  ? `Analisis deskripsi makanan ini: "${description}". Perkirakan nutrisinya dan periksa keamanan berdasarkan profil kesehatan saya.`
+                  : `Analyze this food description: "${description}". Estimate nutrition and check for safety concerns based on my health profile.`,
             },
           ],
         },
       ],
-      system_instruction: { parts: [{ text: buildTextSystemPrompt(userProfile, consumedToday) }] },
+      system_instruction: { parts: [{ text: buildTextSystemPrompt(userProfile, consumedToday, language) }] },
       generationConfig: {
         response_mime_type: 'application/json',
         response_schema: FOOD_ANALYSIS_SCHEMA,
@@ -335,10 +333,17 @@ async function callGemini(
       contents: [
         {
           role: 'user',
-          parts: [{ text: 'Generate my personalized ingredient dictionary based on my health profile.' }],
+          parts: [
+            {
+              text:
+                language === 'id'
+                  ? 'Buat kamus bahan makanan personal berdasarkan profil kesehatan saya.'
+                  : 'Generate my personalized ingredient dictionary based on my health profile.',
+            },
+          ],
         },
       ],
-      system_instruction: { parts: [{ text: buildIngredientsSystemPrompt(userProfile) }] },
+      system_instruction: { parts: [{ text: buildIngredientsSystemPrompt(userProfile, language) }] },
       generationConfig: {
         response_mime_type: 'application/json',
         response_schema: INGREDIENTS_GENERATION_SCHEMA,
@@ -349,25 +354,7 @@ async function callGemini(
       ingredientNames: string[];
       userProfile: PromptUserHealthProfile;
     };
-    const prompt = `You are a nutrition expert. I have a list of food items or ingredients: ${JSON.stringify(ingredientNames)}.
-For each item, provide detailed information.
-The user's health profile:
-Allergies: ${userProfile.allergies?.join(', ') || 'None'}
-Medical Conditions: ${userProfile.medicalConditions?.join(', ') || 'None'}
-Active Medications: ${userProfile.medications?.join(', ') || 'None'}
-
-Return a JSON array of objects with the exact following schema for each item:
-{
-  "ingredientName": "exact name from my list",
-  "category": "e.g., Protein, Additive, Vegetable",
-  "reason": "Why this is safe/flagged/allergen specifically for this user's profile (max 2 sentences)",
-  "description": "Comprehensive educational description explaining what it is and its health effects (2-3 sentences).",
-  "commonlyFoundIn": [
-    {"icon": "ONE SINGLE EMOJI", "label": "food name"}
-  ]
-}
-
-Return ONLY the raw JSON array. Do not use markdown blocks.`;
+    const prompt = buildEnrichIngredientsPrompt(ingredientNames, userProfile, language, false);
 
     requestBody = {
       contents: [{ parts: [{ text: prompt }] }],
